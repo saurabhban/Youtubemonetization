@@ -6,8 +6,9 @@ Supports Indian English, Hindi, and Hinglish voices.
 import asyncio
 import os
 import logging
+import json
+import subprocess
 import edge_tts
-from pydub import AudioSegment
 from config import TTS_VOICES, TTS_RATE, TTS_VOLUME, AUDIO_DIR, CHANNEL_LANGUAGE
 
 logger = logging.getLogger(__name__)
@@ -54,9 +55,13 @@ def text_to_speech(
 
 
 def get_audio_duration(audio_path: str) -> float:
-    """Return duration of audio file in seconds."""
-    audio = AudioSegment.from_file(audio_path)
-    return len(audio) / 1000.0
+    """Return duration of audio file in seconds using ffprobe."""
+    result = subprocess.run(
+        ["ffprobe", "-v", "quiet", "-print_format", "json", "-show_format", audio_path],
+        capture_output=True, text=True
+    )
+    info = json.loads(result.stdout)
+    return float(info["format"]["duration"])
 
 
 def generate_scene_audio(scenes: list[dict], video_id: str, language: str = None) -> list[dict]:
