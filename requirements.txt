@@ -1,0 +1,28 @@
+# India YouTube Video Generator — Python Dependencies
+
+# Web Framework
+flask>=3.0.0
+python-dotenv>=1.0.0
+
+# AI / Script Generation
+openai>=1.30.0
+
+# Text-to-Speech (free, Microsoft Neural voices)
+edge-tts>=6.1.9
+
+# Audio Processing
+pydub>=0.25.1
+
+# Stock Footage Download
+requests>=2.31.0
+
+# YouTube Upload
+google-api-python-client>=2.130.0
+google-auth-oauthlib>=1.2.0
+google-auth-httplib2>=0.2.0
+
+# Image Processing (for thumbnails)
+Pillow>=10.3.0
+
+# Utilities
+tqdm>=4.66.0

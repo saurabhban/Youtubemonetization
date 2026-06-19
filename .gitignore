@@ -1,0 +1,10 @@
+output/
+logs/
+*.pyc
+__pycache__/
+.env
+youtube_token.json
+client_secrets.json
+venv/
+*.mp4
+*.mp3

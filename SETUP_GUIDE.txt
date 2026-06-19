@@ -1,0 +1,137 @@
+╔══════════════════════════════════════════════════════════════════╗
+║     🎬  INDIA FACELESS YOUTUBE VIDEO GENERATOR                  ║
+║     Setup Guide — Read This First!                              ║
+╚══════════════════════════════════════════════════════════════════╝
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+WHAT THIS APP DOES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. You type a topic (or pick from AI-generated ideas)
+2. GPT-4o writes a full 8-minute video script (Indian audience)
+3. Microsoft Edge TTS generates a professional voiceover (FREE)
+4. Pexels API downloads matching stock video clips (FREE)
+5. FFmpeg assembles: title card + clips + captions + outro
+6. Video uploads directly to your YouTube channel
+
+Target niche: Personal Finance India (CPM ₹100–₹250 — HIGHEST in India)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STEP 1 — PREREQUISITES (install once)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+→ Python 3.10+     https://python.org/downloads
+→ FFmpeg            https://ffmpeg.org/download.html
+  (Mac: brew install ffmpeg)
+  (Windows: download from ffmpeg.org, add to PATH)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STEP 2 — GET API KEYS (all free to start)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+A) OpenAI API Key (for GPT-4o script writing)
+   → Sign up: https://platform.openai.com/
+   → Go to: API keys → Create new key
+   → Cost: ~₹3-5 per video script (very cheap!)
+
+B) Pexels API Key (for FREE stock footage)
+   → Sign up: https://www.pexels.com/api/
+   → Completely FREE (200 requests/hour)
+
+C) YouTube API (to upload videos to your channel)
+   → Go to: https://console.cloud.google.com/
+   → Create a new project (e.g. "MyYouTubeBot")
+   → Library → Search "YouTube Data API v3" → Enable
+   → Credentials → Create → OAuth 2.0 Client ID → Desktop App
+   → Download the client_secrets.json or note Client ID + Secret
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STEP 3 — INSTALL & CONFIGURE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. Open Terminal in this folder
+2. Run:  bash setup.sh
+3. Edit the .env file with your API keys:
+   OPENAI_API_KEY=sk-...
+   PEXELS_API_KEY=...
+   YOUTUBE_CLIENT_ID=...
+   YOUTUBE_CLIENT_SECRET=...
+   CHANNEL_NAME=YourChannelName
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STEP 4 — RUN THE APP
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  python webapp.py
+  → Opens dashboard at http://localhost:5000
+  → Click "Connect YouTube" (one-time browser login)
+  → Pick a topic → Click "Generate & Upload Video"
+  → Watch the progress bar — takes 5-15 minutes per video!
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STEP 5 — CLI USAGE (advanced)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  # Generate + upload public video
+  python pipeline.py "How to Save Income Tax in India 2026" --privacy public
+
+  # Generate only (no upload, for review)
+  python pipeline.py "Best SIP Funds 2026" --no-upload
+
+  # Hindi video
+  python pipeline.py "Income Tax Kaise Bachayein 2026" --lang Hindi
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+MONETIZATION ROADMAP (your first ₹10,000)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Week 1-2:   Post 3-4 videos on Personal Finance India
+Week 3-4:   Reach 100 subscribers + 4,000 watch hours target
+Month 2-3:  Apply for YouTube Partner Program
+            → Minimum: 1,000 subs + 4,000 watch hours
+Month 3+:   Earn ₹100-250 per 1,000 views
+            At 50,000 views/month = ₹5,000–₹12,500 ad revenue
+
+POWER TIP: Post 4-5 videos/week consistently!
+           This app can generate a video in 5-15 minutes.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+OPTIONAL ENHANCEMENTS (for selling to orgs)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• Add ElevenLabs API for more natural voices (₹0.50/min)
+• Add background music: put .mp3 files in assets/bgm/
+• Add custom thumbnail generator (Pillow + template)
+• Add multi-channel support (different .env per client)
+• Add Shorts generator (60-sec vertical videos)
+• Deploy on DigitalOcean/AWS and sell as SaaS ₹999/month
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FILE STRUCTURE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+india-yt-generator/
+├── config.py           — All settings & API keys
+├── script_generator.py — GPT-4o script writing
+├── tts_engine.py       — Edge-TTS voiceover (FREE)
+├── footage_fetcher.py  — Pexels stock video download
+├── video_assembler.py  — FFmpeg video assembly
+├── youtube_uploader.py — YouTube Data API upload
+├── pipeline.py         — Full pipeline orchestrator + CLI
+├── webapp.py           — Flask web dashboard
+├── templates/
+│   └── dashboard.html  — Beautiful web UI
+├── assets/
+│   ├── bgm/            — Add .mp3 background music here
+│   └── fonts/          — Auto-downloaded fonts
+├── output/
+│   ├── videos/         — Final MP4 files
+│   ├── audio/          — TTS audio files
+│   └── footage/        — Downloaded stock clips
+├── .env                — Your API keys (never commit this!)
+├── .env.example        — Template for .env
+├── requirements.txt    — Python packages
+└── setup.sh            — One-click setup
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+COST PER VIDEO (approximate)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  GPT-4o script:     ₹3–5
+  Edge TTS:          FREE
+  Pexels footage:    FREE
+  FFmpeg:            FREE
+  YouTube upload:    FREE
+  ─────────────────────────
+  TOTAL per video:   ~₹3–5 only!
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
