@@ -47,6 +47,29 @@ NICHE_TO_CATEGORY = {
     "Health & Wellness India":"26",
 }
 
+# Niche-specific hashtags & disclaimers for the video description footer
+NICHE_FOOTER = {
+    "AI & Technology India": (
+        "#CloudComputing #AWSIndia #DevOps #ArtificialIntelligence #TechIndia #CloudSignalHQ\n\n"
+        "⚠️ Disclaimer: Tech certifications and job market data mentioned are based on publicly available "
+        "information. Salary figures are approximate industry averages."
+    ),
+    "Personal Finance India": (
+        "#IndiaFinance #MoneyTips #PersonalFinance #Investment #India2026 #CloudSignalHQ\n\n"
+        "⚠️ Disclaimer: This video is for educational purposes only and does not constitute financial advice. "
+        "Please consult a SEBI-registered financial advisor before investing."
+    ),
+    "Government Jobs India": (
+        "#SarkariNaukri #GovernmentJobs #UPSC #SSC #BankPO #CloudSignalHQ\n\n"
+        "⚠️ Disclaimer: Exam information is based on official notifications. Always verify from official websites."
+    ),
+    "Health & Wellness India": (
+        "#HealthIndia #Ayurveda #Wellness #Yoga #IndianDiet #CloudSignalHQ\n\n"
+        "⚠️ Disclaimer: Health information in this video is for general awareness only. "
+        "Consult a qualified doctor before making any health decisions."
+    ),
+}
+
 
 def get_credentials() -> "Credentials | None":
     """Get or refresh YouTube OAuth2 credentials."""
@@ -100,24 +123,51 @@ def build_youtube_service():
     return build("youtube", "v3", credentials=creds)
 
 
+def _build_tags(script_tags: list, niche: str) -> list:
+    """
+    Merge script-generated tags with channel baseline tags.
+    YouTube accepts up to 500 characters total; we trim by char count.
+    """
+    # Channel-level baseline tags always included
+    base_tags = [
+        "cloudsignalhq", "cloud signal", "india tech", "tech india 2026",
+        "cloud computing india", "indian developer", "tech career india",
+    ]
+    all_tags = list(dict.fromkeys(script_tags + base_tags))  # dedupe, preserve order
+
+    # Trim to YouTube's 500-char limit (tags joined by comma+space)
+    selected, total = [], 0
+    for tag in all_tags:
+        cost = len(tag) + (2 if selected else 0)  # comma+space separator
+        if total + cost > 490:
+            break
+        selected.append(tag)
+        total += cost
+
+    logger.info(f"Tags: {len(selected)} tags, {total} chars")
+    return selected
+
+
 def upload_video(
     video_path: str,
     script: dict,
-    niche: str = "Personal Finance India",
-    privacy: str = "private",   # "private" | "unlisted" | "public"
-    publish_at: str = None,     # ISO 8601 for scheduled publish
+    niche: str = "AI & Technology India",
+    privacy: str = "private",
+    publish_at: str = None,
     made_for_kids: bool = False,
+    thumbnail_path: str = None,
 ) -> dict:
     """
-    Upload a video to YouTube.
+    Upload a video to YouTube with SEO-optimized metadata and optional thumbnail.
 
     Args:
-        video_path: Local path to the .mp4 file
-        script: Script dict with title, description, tags
-        niche: Channel niche for category mapping
-        privacy: Privacy status
-        publish_at: Schedule publish time (ISO 8601 UTC)
-        made_for_kids: Whether content is for children
+        video_path:     Local path to the .mp4 file
+        script:         Script dict with title, description, tags from AI
+        niche:          Channel niche for category/footer mapping
+        privacy:        Privacy status ("private"|"unlisted"|"public")
+        publish_at:     ISO 8601 scheduled publish time
+        made_for_kids:  Whether content is for children
+        thumbnail_path: Path to custom thumbnail JPEG (optional — uploaded after video)
 
     Returns:
         dict with video_id, url, and upload metadata
@@ -129,44 +179,49 @@ def upload_video(
         raise FileNotFoundError(f"Video not found: {video_path}")
 
     title       = script.get("title", "Untitled Video")[:100]
-    description = script.get("description", "")[:5000]
-    tags        = script.get("tags", [])[:500]   # YouTube max 500 chars total
-    category_id = NICHE_TO_CATEGORY.get(niche, "27")
+    raw_desc    = script.get("description", "")
+    raw_tags    = script.get("tags", [])
+    category_id = NICHE_TO_CATEGORY.get(niche, "28")
 
-    # Build description with standard footer
-    full_description = f"""{description}
+    # ── Build full description ───────────────────────────────────────
+    niche_footer = NICHE_FOOTER.get(niche, (
+        "#India #Education #CloudSignalHQ\n\n"
+        "⚠️ This video is for educational purposes only."
+    ))
+    full_description = (
+        raw_desc.strip()
+        + "\n\n"
+        + "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        + f"📌 {CHANNEL_NAME} — India's #1 channel for cloud & AI careers.\n"
+        + "🔔 Subscribe & hit the bell icon — new videos every week!\n"
+        + "💬 Drop your question in the comments below!\n"
+        + "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        + niche_footer
+    )[:5000]
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📌 {CHANNEL_NAME} — India's go-to channel for smart money moves.
-🔔 Subscribe & hit the bell icon for weekly videos!
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-#IndiaFinance #MoneyTips #PersonalFinance #Investment #India2026
-
-⚠️ Disclaimer: This video is for educational purposes only and does not constitute financial advice. Please consult a SEBI-registered financial advisor before investing.
-"""
+    # ── Build tags ───────────────────────────────────────────────────
+    tags = _build_tags(raw_tags, niche)
 
     body = {
         "snippet": {
-            "title":       title,
-            "description": full_description[:5000],
-            "tags":        tags,
-            "categoryId":  category_id,
+            "title":           title,
+            "description":     full_description,
+            "tags":            tags,
+            "categoryId":      category_id,
             "defaultLanguage": "en",
         },
         "status": {
-            "privacyStatus":        privacy,
-            "madeForKids":          made_for_kids,
+            "privacyStatus":           privacy,
+            "madeForKids":             made_for_kids,
             "selfDeclaredMadeForKids": made_for_kids,
         },
     }
 
-    # Scheduled publish
     if publish_at and privacy == "private":
         body["status"]["publishAt"] = publish_at
-        body["status"]["privacyStatus"] = "private"
 
-    logger.info(f"Uploading: '{title}' ({os.path.getsize(video_path)/(1024*1024):.1f} MB)")
+    size_mb = os.path.getsize(video_path) / (1024 * 1024)
+    logger.info(f"Uploading: '{title}' ({size_mb:.1f} MB) | {len(tags)} tags")
 
     youtube = build_youtube_service()
 
@@ -177,7 +232,7 @@ def upload_video(
         chunksize=1024 * 1024 * 8,   # 8 MB chunks
     )
 
-    request = youtube.videos().insert(
+    req = youtube.videos().insert(
         part="snippet,status",
         body=body,
         media_body=media,
@@ -185,23 +240,32 @@ def upload_video(
 
     response = None
     while response is None:
-        status, response = request.next_chunk()
-        if status:
-            pct = int(status.progress() * 100)
+        upload_status, response = req.next_chunk()
+        if upload_status:
+            pct = int(upload_status.progress() * 100)
             logger.info(f"  Upload progress: {pct}%")
 
     video_id  = response.get("id")
     video_url = f"https://www.youtube.com/watch?v={video_id}"
-
     logger.info(f"✅ Uploaded successfully: {video_url}")
 
+    # ── Auto-upload thumbnail ────────────────────────────────────────
+    thumb_ok = False
+    if thumbnail_path and os.path.exists(thumbnail_path):
+        logger.info(f"Uploading thumbnail: {thumbnail_path}")
+        thumb_ok = set_thumbnail(video_id, thumbnail_path)
+    else:
+        logger.info("No thumbnail provided — skipping thumbnail upload")
+
     return {
-        "video_id":     video_id,
-        "url":          video_url,
-        "title":        title,
-        "privacy":      privacy,
-        "category_id":  category_id,
-        "response":     response,
+        "video_id":        video_id,
+        "url":             video_url,
+        "title":           title,
+        "privacy":         privacy,
+        "category_id":     category_id,
+        "tags_count":      len(tags),
+        "thumbnail_set":   thumb_ok,
+        "response":        response,
     }
 
 

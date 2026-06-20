@@ -15,6 +15,9 @@ app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET", uuid.uuid4().hex)
 logger = logging.getLogger(__name__)
 
+# Track background OAuth flow state
+_auth_state = {"running": False, "done": False, "error": None}
+
 # In-memory job tracker (use Redis/DB for production)
 JOBS: dict[str, dict] = {}
 
@@ -169,18 +172,43 @@ def api_channel_info():
 @app.route("/api/youtube-auth-status")
 def api_youtube_auth_status():
     from config import YOUTUBE_TOKEN_FILE
-    return jsonify({"authenticated": os.path.exists(YOUTUBE_TOKEN_FILE)})
+    authenticated = os.path.exists(YOUTUBE_TOKEN_FILE)
+    channel = {}
+    if authenticated:
+        try:
+            from youtube_uploader import get_channel_info
+            channel = get_channel_info()
+        except Exception:
+            pass
+    return jsonify({
+        "authenticated": authenticated,
+        "channel": channel,
+        "auth_running": _auth_state["running"],
+        "auth_error": _auth_state["error"],
+    })
 
 
 @app.route("/api/youtube-auth", methods=["POST"])
 def api_youtube_auth():
-    """Trigger OAuth flow (opens browser)."""
-    try:
-        from youtube_uploader import get_credentials
-        creds = get_credentials()
-        return jsonify({"success": True, "message": "Authenticated successfully"})
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+    """Trigger OAuth flow in background thread (opens browser)."""
+    global _auth_state
+    if _auth_state["running"]:
+        return jsonify({"started": True, "message": "Auth already in progress — check your browser."})
+
+    _auth_state = {"running": True, "done": False, "error": None}
+
+    def _run_auth():
+        global _auth_state
+        try:
+            from youtube_uploader import get_credentials
+            get_credentials()
+            _auth_state = {"running": False, "done": True, "error": None}
+        except Exception as e:
+            _auth_state = {"running": False, "done": False, "error": str(e)}
+            logger.error(f"YouTube auth failed: {e}")
+
+    threading.Thread(target=_run_auth, daemon=True).start()
+    return jsonify({"started": True, "message": "Browser should open for Google login. Complete it, then the status will update automatically."})
 
 
 @app.route("/output/videos/<path:filename>")

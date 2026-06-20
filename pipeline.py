@@ -132,9 +132,28 @@ class VideoGenerationPipeline:
             progress("assembly", f"Video assembled: {size_mb:.1f} MB", 85)
             result["video_path"] = video_path
 
-            # ── Step 5: Upload to YouTube ────────────────────────────
+            # ── Step 5: Generate Thumbnail ───────────────────────────
+            thumbnail_path = None
+            try:
+                progress("thumbnail", "Generating custom thumbnail...", 86)
+                from thumbnail_generator import generate_thumbnail
+                thumbnail_path = generate_thumbnail(
+                    title=script.get("title", topic),
+                    thumbnail_text=script.get("thumbnail_text", ""),
+                    thumbnail_subtitle=script.get("thumbnail_subtitle", ""),
+                    channel_name=self.channel_name,
+                    niche=self.niche,
+                    video_id=video_id,
+                    tags=script.get("tags", [])[:4],
+                )
+                result["thumbnail_path"] = thumbnail_path
+                progress("thumbnail", f"Thumbnail ready: {os.path.basename(thumbnail_path)}", 88)
+            except Exception as thumb_err:
+                logger.warning(f"Thumbnail generation failed (non-fatal): {thumb_err}")
+
+            # ── Step 6: Upload to YouTube ────────────────────────────
             if upload:
-                progress("upload", "Uploading to YouTube...", 88)
+                progress("upload", "Uploading to YouTube...", 90)
                 from youtube_uploader import upload_video
                 upload_result = upload_video(
                     video_path=video_path,
@@ -142,11 +161,13 @@ class VideoGenerationPipeline:
                     niche=self.niche,
                     privacy=privacy,
                     publish_at=publish_at,
+                    thumbnail_path=thumbnail_path,
                 )
                 result["youtube_url"]  = upload_result["url"]
                 result["youtube_id"]   = upload_result["video_id"]
                 result["upload_result"]= upload_result
-                progress("done", f"✅ Uploaded: {upload_result['url']}", 100)
+                thumb_status = "✅ thumbnail set" if upload_result.get("thumbnail_set") else "⚠️ no thumbnail"
+                progress("done", f"✅ Uploaded: {upload_result['url']} | {upload_result['tags_count']} tags | {thumb_status}", 100)
             else:
                 progress("done", f"✅ Video ready (upload skipped): {video_path}", 100)
 

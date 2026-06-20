@@ -14,8 +14,8 @@ YOUTUBE_CLIENT_ID   = os.getenv("YOUTUBE_CLIENT_ID", "")
 YOUTUBE_CLIENT_SECRET = os.getenv("YOUTUBE_CLIENT_SECRET", "")
 
 # ─── CHANNEL SETTINGS ───────────────────────────────────────────
-CHANNEL_NAME        = os.getenv("CHANNEL_NAME", "Money Mantra India")
-CHANNEL_NICHE       = os.getenv("CHANNEL_NICHE", "Personal Finance India")
+CHANNEL_NAME        = os.getenv("CHANNEL_NAME", "CloudSignalHQ")
+CHANNEL_NICHE       = os.getenv("CHANNEL_NICHE", "AI & Technology India")
 CHANNEL_LANGUAGE    = os.getenv("CHANNEL_LANGUAGE", "English")  # English | Hindi | Hinglish
 
 # ─── VIDEO SETTINGS ─────────────────────────────────────────────
@@ -64,16 +64,26 @@ NICHES = {
         "cpm_range": "₹100–₹250",
     },
     "AI & Technology India": {
-        "description": "AI tools, tech news, gadget reviews for Indians",
+        "description": "Cloud computing, AI tools, DevOps, and tech careers for Indian professionals",
         "topic_ideas": [
-            "Top 10 AI Tools Every Indian Professional Must Use",
-            "How to Make Money with AI in India 2026",
-            "Best Budget Smartphones Under ₹15000 in 2026",
-            "ChatGPT vs Gemini – Which AI is Better for Indians?",
-            "How to Use AI to Write Your Resume and Get a Job",
+            "AWS vs Azure vs GCP – Which Cloud to Learn in India 2026",
+            "How to Get AWS Certified in 30 Days – Free Resources",
+            "Top 10 AI Tools Every Indian Developer Must Know in 2026",
+            "How to Land a Cloud Engineer Job with ₹15–30 LPA Salary",
+            "Docker & Kubernetes Explained in Simple Hindi for Beginners",
+            "ChatGPT vs Claude vs Gemini – Best AI for Indian Coders",
+            "How to Build and Deploy a Python App on AWS for Free",
+            "Top 5 Cloud Certifications That Actually Get You Hired in India",
+            "What is Generative AI? Complete Guide for Indian Students",
+            "GitHub Copilot vs Cursor – Which AI Coding Tool is Best?",
+            "How Indians Are Earning ₹1 Lakh/Month with Cloud Freelancing",
+            "Azure vs AWS in India – Which Has More Jobs in 2026?",
+            "How to Set Up a Home Lab for Cloud Learning – Under ₹5000",
+            "Terraform in 10 Minutes – Infrastructure as Code for Beginners",
+            "Best Free Courses to Learn AI/ML in India (2026 Updated)",
         ],
-        "keywords": ["ai", "technology", "gadgets", "india", "tech"],
-        "cpm_range": "₹80–₹180",
+        "keywords": ["cloud", "aws", "azure", "devops", "ai", "technology", "india", "tech career"],
+        "cpm_range": "₹80–₹200",
     },
     "Government Jobs India": {
         "description": "UPSC, SSC, banking exams, government schemes",

@@ -6,508 +6,486 @@
   <title>🎬 India YouTube Generator</title>
   <style>
     :root {
-      --saffron: #FF6B00;
-      --gold:    #FFD700;
-      --navy:    #1a1a2e;
-      --dark:    #0d0d1a;
-      --card:    #16213e;
-      --border:  #0f3460;
-      --green:   #00C851;
-      --red:     #ff4444;
-      --text:    #e0e0e0;
-      --muted:   #888;
+      --bg:       #0f0f0f;
+      --surface:  #1a1a1a;
+      --surface2: #272727;
+      --border:   #3d3d3d;
+      --saffron:  #FF6B00;
+      --gold:     #FFD700;
+      --green:    #00C851;
+      --red:      #ff4444;
+      --text:     #f1f1f1;
+      --muted:    #aaa;
+      --dim:      #717171;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: -apple-system, 'Segoe UI', sans-serif;
-      background: var(--dark);
+      font-family: -apple-system, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
       color: var(--text);
       min-height: 100vh;
+      font-size: 14px;
     }
 
-    /* ── Header ─────────────────────────────── */
+    /* ── Header ────────────────────────────────── */
     header {
-      background: linear-gradient(135deg, var(--navy), #0f3460);
-      border-bottom: 2px solid var(--saffron);
-      padding: 16px 32px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      height: 56px;
       display: flex;
       align-items: center;
       justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
     }
-    .brand { display: flex; align-items: center; gap: 12px; }
-    .brand h1 { font-size: 1.4rem; color: white; }
-    .brand span { font-size: 1.8rem; }
-    .channel-badge {
+    .brand { display: flex; align-items: center; gap: 10px; }
+    .brand-icon {
       background: var(--saffron);
-      color: white;
-      padding: 6px 16px;
-      border-radius: 20px;
-      font-size: 0.85rem;
-      font-weight: 600;
+      width: 34px; height: 34px;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
     }
-    .yt-status {
+    .brand h1 { font-size: 1.05rem; font-weight: 600; color: var(--text); }
+
+    .header-right { display: flex; align-items: center; gap: 12px; }
+
+    .yt-pill {
       display: flex; align-items: center; gap: 8px;
-      font-size: 0.85rem;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 6px 14px;
+      font-size: 0.8rem;
+      color: var(--muted);
+      cursor: pointer;
+      transition: border-color 0.2s;
     }
-    .dot {
-      width: 10px; height: 10px;
+    .yt-pill:hover { border-color: var(--saffron); }
+    .yt-pill.connected { border-color: var(--green); color: var(--green); }
+    .yt-pill.connecting { border-color: var(--gold); color: var(--gold); }
+    .yt-dot {
+      width: 8px; height: 8px;
       border-radius: 50%;
       background: var(--red);
+      flex-shrink: 0;
     }
-    .dot.connected { background: var(--green); }
+    .yt-dot.on { background: var(--green); }
+    .yt-dot.pulse {
+      background: var(--gold);
+      animation: pulse 1s infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
 
-    /* ── Layout ─────────────────────────────── */
-    .container { max-width: 1280px; margin: 0 auto; padding: 24px 32px; }
-    .grid-3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; margin-bottom: 24px; }
-    .grid-2 { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; }
+    .channel-chip {
+      display: flex; align-items: center; gap: 6px;
+      background: rgba(255,107,0,0.12);
+      border: 1px solid rgba(255,107,0,0.3);
+      border-radius: 20px;
+      padding: 5px 14px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--saffron);
+    }
 
-    /* ── Cards ──────────────────────────────── */
-    .card {
-      background: var(--card);
+    /* ── Layout ─────────────────────────────────── */
+    .page { max-width: 1300px; margin: 0 auto; padding: 24px 24px; }
+    .grid-top { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-bottom: 20px; }
+    .main-grid { display: grid; grid-template-columns: 1fr 320px; gap: 20px; }
+
+    /* ── Stat cards ─────────────────────────────── */
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 20px;
+    }
+    .stat-label { font-size: 0.75rem; color: var(--dim); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+    .stat-val { font-size: 1.8rem; font-weight: 700; color: var(--gold); line-height: 1; }
+    .stat-sub { font-size: 0.75rem; color: var(--muted); margin-top: 4px; }
+
+    /* ── Panel ──────────────────────────────────── */
+    .panel {
+      background: var(--surface);
       border: 1px solid var(--border);
       border-radius: 12px;
       padding: 20px;
     }
-    .card h2 {
+    .panel-title {
       font-size: 0.9rem;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      color: var(--muted);
-      margin-bottom: 8px;
-    }
-    .stat-val {
-      font-size: 2rem;
-      font-weight: 700;
-      color: var(--gold);
-    }
-    .stat-sub { font-size: 0.8rem; color: var(--muted); }
-
-    /* ── Generate Form ───────────────────────── */
-    .gen-card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 24px;
-    }
-    .gen-card h2 {
-      font-size: 1.1rem;
-      margin-bottom: 20px;
-      color: var(--gold);
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 16px;
       display: flex;
       align-items: center;
       gap: 8px;
     }
-    .form-row { margin-bottom: 16px; }
-    label {
-      display: block;
-      font-size: 0.85rem;
-      color: var(--muted);
-      margin-bottom: 6px;
-    }
-    input, select, textarea {
+
+    /* ── Form ───────────────────────────────────── */
+    .form-group { margin-bottom: 14px; }
+    .form-label { font-size: 0.75rem; color: var(--dim); margin-bottom: 6px; display: block; text-transform: uppercase; letter-spacing: .4px; }
+    input[type=text], select, textarea {
       width: 100%;
-      background: var(--navy);
+      background: var(--surface2);
       border: 1px solid var(--border);
       color: var(--text);
-      padding: 10px 14px;
+      padding: 9px 13px;
       border-radius: 8px;
-      font-size: 0.95rem;
+      font-size: 0.9rem;
       outline: none;
-      transition: border-color 0.2s;
+      transition: border-color 0.15s;
     }
-    input:focus, select:focus, textarea:focus {
-      border-color: var(--saffron);
-    }
-    textarea { height: 80px; resize: vertical; }
-    .form-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+    input[type=text]:focus, select:focus, textarea:focus { border-color: var(--saffron); }
+    select option { background: var(--surface2); }
+    textarea { height: 72px; resize: vertical; }
+    .form-row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
 
-    /* ── Buttons ────────────────────────────── */
-    .btn {
-      padding: 11px 22px;
-      border: none;
-      border-radius: 8px;
-      font-size: 0.95rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    .btn-primary {
-      background: linear-gradient(135deg, var(--saffron), #ff8c00);
-      color: white;
-      width: 100%;
-      margin-top: 8px;
-      font-size: 1rem;
-      padding: 14px;
-    }
-    .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
-    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
-    .btn-secondary {
-      background: var(--navy);
-      color: var(--gold);
-      border: 1px solid var(--border);
-      font-size: 0.85rem;
-      padding: 8px 14px;
-    }
-    .btn-secondary:hover { border-color: var(--saffron); }
-
-    /* ── Topic Ideas ─────────────────────────── */
-    .topics-panel {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 20px;
-    }
-    .topics-panel h2 { font-size: 1rem; color: var(--gold); margin-bottom: 12px; }
-    .topic-item {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 10px 12px;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: background 0.15s;
-      font-size: 0.88rem;
-      border: 1px solid transparent;
-    }
-    .topic-item:hover {
-      background: var(--navy);
-      border-color: var(--border);
-    }
-    .topic-item.selected {
-      background: rgba(255,107,0,0.12);
-      border-color: var(--saffron);
-      color: white;
-    }
-    .topic-cpm {
-      background: rgba(0,200,81,0.15);
-      color: var(--green);
-      font-size: 0.75rem;
-      padding: 2px 8px;
-      border-radius: 12px;
-      white-space: nowrap;
-      margin-left: auto;
-    }
-
-    /* ── Progress ───────────────────────────── */
-    .progress-wrap {
-      display: none;
-      margin-top: 16px;
-    }
-    .progress-bar-bg {
-      background: var(--navy);
-      border-radius: 8px;
-      height: 10px;
-      overflow: hidden;
-      margin: 8px 0;
-    }
-    .progress-bar {
-      height: 100%;
-      background: linear-gradient(90deg, var(--saffron), var(--gold));
-      border-radius: 8px;
-      transition: width 0.5s ease;
-    }
-    .progress-msg { font-size: 0.85rem; color: var(--muted); }
-    .step-badges { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
-    .step-badge {
-      padding: 4px 10px;
-      border-radius: 12px;
-      font-size: 0.75rem;
-      background: var(--navy);
-      color: var(--muted);
-      border: 1px solid var(--border);
-    }
-    .step-badge.active {
-      background: rgba(255,107,0,0.2);
-      color: var(--saffron);
-      border-color: var(--saffron);
-    }
-    .step-badge.done {
-      background: rgba(0,200,81,0.15);
-      color: var(--green);
-      border-color: var(--green);
-    }
-
-    /* ── Jobs Table ─────────────────────────── */
-    .jobs-card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 20px;
-      margin-top: 24px;
-    }
-    .jobs-card h2 { font-size: 1rem; color: var(--gold); margin-bottom: 16px; }
-    table { width: 100%; border-collapse: collapse; }
-    th, td {
-      padding: 10px 12px;
-      text-align: left;
-      font-size: 0.85rem;
-      border-bottom: 1px solid var(--border);
-    }
-    th { color: var(--muted); font-weight: 600; font-size: 0.78rem; text-transform: uppercase; }
-    td { color: var(--text); }
-    .badge {
-      display: inline-block;
-      padding: 3px 10px;
-      border-radius: 12px;
-      font-size: 0.75rem;
-      font-weight: 600;
-    }
-    .badge-running  { background: rgba(255,215,0,0.15); color: var(--gold); }
-    .badge-done     { background: rgba(0,200,81,0.15);  color: var(--green); }
-    .badge-error    { background: rgba(255,68,68,0.15); color: var(--red); }
-    .badge-queued   { background: rgba(136,136,136,0.15); color: var(--muted); }
-    .link-yt {
-      color: var(--saffron);
-      text-decoration: none;
-      font-size: 0.8rem;
-    }
-    .link-yt:hover { text-decoration: underline; }
-
-    /* ── Niche Selector ─────────────────────── */
-    .niche-cards { display: grid; grid-template-columns: repeat(2,1fr); gap: 10px; margin-bottom: 16px; }
+    /* ── Niche grid ─────────────────────────────── */
+    .niche-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
     .niche-card {
-      padding: 12px;
+      padding: 10px 12px;
       border: 1px solid var(--border);
       border-radius: 8px;
       cursor: pointer;
       transition: all 0.15s;
+      background: var(--surface2);
     }
     .niche-card:hover { border-color: var(--saffron); }
-    .niche-card.selected {
-      border-color: var(--saffron);
-      background: rgba(255,107,0,0.08);
-    }
-    .niche-name { font-size: 0.9rem; font-weight: 600; margin-bottom: 2px; }
-    .niche-cpm { font-size: 0.75rem; color: var(--green); }
+    .niche-card.selected { border-color: var(--saffron); background: rgba(255,107,0,0.08); }
+    .niche-name { font-size: 0.82rem; font-weight: 600; margin-bottom: 2px; }
+    .niche-cpm { font-size: 0.72rem; color: var(--green); }
 
-    /* ── Alert ──────────────────────────────── */
-    .alert {
-      padding: 12px 16px;
+    /* ── Buttons ────────────────────────────────── */
+    .btn-generate {
+      width: 100%;
+      padding: 12px;
+      background: var(--saffron);
+      color: white;
+      border: none;
       border-radius: 8px;
-      font-size: 0.88rem;
-      margin-top: 12px;
-      display: none;
-    }
-    .alert-success { background: rgba(0,200,81,0.12); border: 1px solid var(--green); color: var(--green); }
-    .alert-error   { background: rgba(255,68,68,0.12); border: 1px solid var(--red);   color: var(--red); }
-
-    /* ── Tabs ───────────────────────────────── */
-    .tabs { display: flex; gap: 4px; margin-bottom: 20px; }
-    .tab {
-      padding: 8px 18px;
-      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 700;
       cursor: pointer;
-      font-size: 0.88rem;
+      transition: all 0.15s;
+      margin-top: 4px;
+    }
+    .btn-generate:hover { background: #e05f00; }
+    .btn-generate:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn-sm {
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: var(--surface2);
       color: var(--muted);
-      border: 1px solid transparent;
-      background: none;
+      transition: all 0.15s;
     }
-    .tab.active {
-      background: rgba(255,107,0,0.15);
-      color: var(--saffron);
-      border-color: var(--saffron);
-    }
-    .tab-panel { display: none; }
-    .tab-panel.active { display: block; }
+    .btn-sm:hover { border-color: var(--saffron); color: var(--saffron); }
 
-    /* ── Responsive ─────────────────────────── */
+    /* ── Progress ───────────────────────────────── */
+    .progress-wrap { margin-top: 14px; display: none; }
+    .progress-header { display: flex; justify-content: space-between; margin-bottom: 6px; }
+    .progress-msg { font-size: 0.8rem; color: var(--muted); }
+    .progress-pct { font-size: 0.8rem; color: var(--gold); font-weight: 600; }
+    .progress-track { background: var(--surface2); border-radius: 6px; height: 6px; overflow: hidden; }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--saffron), var(--gold));
+      border-radius: 6px;
+      transition: width 0.4s ease;
+      width: 0%;
+    }
+    .steps { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+    .step {
+      padding: 3px 10px;
+      border-radius: 10px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      background: var(--surface2);
+      color: var(--dim);
+      border: 1px solid var(--border);
+    }
+    .step.active { background: rgba(255,107,0,0.15); color: var(--saffron); border-color: var(--saffron); }
+    .step.done   { background: rgba(0,200,81,0.12);  color: var(--green);   border-color: var(--green); }
+
+    /* ── Alert ──────────────────────────────────── */
+    .alert { margin-top: 10px; padding: 10px 14px; border-radius: 8px; font-size: 0.83rem; display: none; }
+    .alert-ok  { background: rgba(0,200,81,0.1);  border: 1px solid rgba(0,200,81,0.3);  color: var(--green); }
+    .alert-err { background: rgba(255,68,68,0.1); border: 1px solid rgba(255,68,68,0.3); color: var(--red); }
+    .alert-info { background: rgba(255,215,0,0.08); border: 1px solid rgba(255,215,0,0.25); color: var(--gold); }
+
+    /* ── Topic ideas ────────────────────────────── */
+    .topic-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 10px;
+      border-radius: 7px;
+      cursor: pointer;
+      transition: background 0.12s;
+      border: 1px solid transparent;
+      font-size: 0.83rem;
+      line-height: 1.3;
+      color: var(--muted);
+    }
+    .topic-item:hover { background: var(--surface2); border-color: var(--border); color: var(--text); }
+    .topic-item.selected { background: rgba(255,107,0,0.08); border-color: rgba(255,107,0,0.3); color: var(--text); }
+    .topic-num { color: var(--dim); font-size: 0.7rem; min-width: 16px; }
+    .topic-cpm {
+      margin-left: auto; flex-shrink: 0;
+      background: rgba(0,200,81,0.12);
+      color: var(--green);
+      font-size: 0.68rem;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 8px;
+    }
+
+    /* ── Jobs table ─────────────────────────────── */
+    .jobs-panel { margin-top: 20px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+    th { font-size: 0.72rem; color: var(--dim); text-transform: uppercase; letter-spacing: .4px; font-weight: 600; }
+    td { font-size: 0.83rem; color: var(--text); }
+    .badge {
+      display: inline-block; padding: 2px 9px; border-radius: 10px;
+      font-size: 0.72rem; font-weight: 700;
+    }
+    .badge-running { background: rgba(255,215,0,0.12); color: var(--gold); }
+    .badge-done    { background: rgba(0,200,81,0.12);  color: var(--green); }
+    .badge-error   { background: rgba(255,68,68,0.12); color: var(--red); }
+    .badge-queued  { background: rgba(136,136,136,0.1); color: var(--muted); }
+    .yt-link { color: var(--saffron); text-decoration: none; font-size: 0.78rem; }
+    .yt-link:hover { text-decoration: underline; }
+
+    /* ── Auth modal overlay ─────────────────────── */
+    #authOverlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.75);
+      z-index: 200;
+      align-items: center; justify-content: center;
+    }
+    #authOverlay.show { display: flex; }
+    .auth-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 32px;
+      max-width: 400px;
+      width: 90%;
+      text-align: center;
+    }
+    .auth-box h3 { font-size: 1.1rem; margin-bottom: 10px; }
+    .auth-box p  { color: var(--muted); font-size: 0.85rem; margin-bottom: 20px; line-height: 1.5; }
+    .auth-spinner {
+      width: 36px; height: 36px;
+      border: 3px solid var(--border);
+      border-top-color: var(--saffron);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
     @media (max-width: 900px) {
-      .grid-3, .grid-2, .form-grid, .niche-cards { grid-template-columns: 1fr; }
+      .grid-top, .main-grid, .form-row3, .niche-grid { grid-template-columns: 1fr; }
     }
   </style>
 </head>
 <body>
 
+<!-- Auth Modal -->
+<div id="authOverlay">
+  <div class="auth-box">
+    <div class="auth-spinner" id="authSpinner"></div>
+    <h3 id="authTitle">Connecting YouTube...</h3>
+    <p id="authMsg">A browser window should have opened for Google login.<br>Complete the login, then wait here — this will update automatically.</p>
+    <button class="btn-sm" onclick="closeAuthModal()" style="margin-top:8px">Close</button>
+  </div>
+</div>
+
 <header>
   <div class="brand">
-    <span>🎬</span>
-    <h1>India YouTube Video Generator</h1>
+    <div class="brand-icon">🎬</div>
+    <h1>India YouTube Generator</h1>
   </div>
-  <div style="display:flex;align-items:center;gap:16px">
-    <div class="yt-status" id="ytStatus">
-      <div class="dot" id="ytDot"></div>
-      <span id="ytStatusText">YouTube: Checking...</span>
+  <div class="header-right">
+    <div class="yt-pill" id="ytPill" onclick="connectYouTube()">
+      <div class="yt-dot" id="ytDot"></div>
+      <span id="ytText">Connect YouTube</span>
     </div>
-    <button class="btn btn-secondary" onclick="connectYouTube()">Connect YouTube</button>
-    <div class="channel-badge">{{ channel_name }}</div>
+    <div class="channel-chip" id="channelChip">
+      <span>📺</span>
+      <span id="channelName">{{ channel_name }}</span>
+    </div>
   </div>
 </header>
 
-<div class="container">
+<div class="page">
 
-  <!-- Stats Row -->
-  <div class="grid-3" id="statsRow">
-    <div class="card">
-      <h2>📹 Videos Generated</h2>
+  <!-- Stats -->
+  <div class="grid-top">
+    <div class="stat-card">
+      <div class="stat-label">📹 Videos Generated</div>
       <div class="stat-val" id="statVideos">—</div>
-      <div class="stat-sub">total all time</div>
+      <div class="stat-sub">all time</div>
     </div>
-    <div class="card">
-      <h2>📈 Best Niche CPM</h2>
-      <div class="stat-val">₹100–250</div>
+    <div class="stat-card">
+      <div class="stat-label">📈 Best Niche CPM</div>
+      <div class="stat-val">₹250</div>
       <div class="stat-sub">Personal Finance India</div>
     </div>
-    <div class="card">
-      <h2>🎯 Monthly Target</h2>
-      <div class="stat-val">₹10,000</div>
+    <div class="stat-card">
+      <div class="stat-label">🎯 Monthly Target</div>
+      <div class="stat-val">₹10K</div>
       <div class="stat-sub">~4 videos/week needed</div>
     </div>
   </div>
 
-  <!-- Main Grid -->
-  <div class="grid-2">
+  <div class="main-grid">
 
-    <!-- Left: Generate Panel -->
+    <!-- Left: Generate -->
     <div>
-      <div class="gen-card">
-        <h2>⚡ Generate New Video</h2>
+      <div class="panel">
+        <div class="panel-title">⚡ Generate New Video</div>
 
-        <!-- Niche Select -->
-        <div class="form-row">
-          <label>Select Niche</label>
-          <div class="niche-cards" id="nicheCards">
-            <div class="niche-card selected" data-niche="Personal Finance India" onclick="selectNiche(this)">
-              <div class="niche-name">💰 Personal Finance India</div>
-              <div class="niche-cpm">CPM: ₹100–250 (Highest)</div>
+        <div class="form-group">
+          <div class="form-label">Niche</div>
+          <div class="niche-grid">
+            <div class="niche-card" data-niche="Personal Finance India" onclick="selectNiche(this)">
+              <div class="niche-name">💰 Personal Finance</div>
+              <div class="niche-cpm">CPM ₹100–250</div>
             </div>
-            <div class="niche-card" data-niche="AI & Technology India" onclick="selectNiche(this)">
-              <div class="niche-name">🤖 AI & Technology India</div>
-              <div class="niche-cpm">CPM: ₹80–180</div>
+            <div class="niche-card selected" data-niche="AI & Technology India" onclick="selectNiche(this)">
+              <div class="niche-name">☁️ Cloud & AI Tech</div>
+              <div class="niche-cpm">CPM ₹80–200 · Your Niche</div>
             </div>
             <div class="niche-card" data-niche="Government Jobs India" onclick="selectNiche(this)">
-              <div class="niche-name">🏛️ Government Jobs India</div>
-              <div class="niche-cpm">CPM: ₹60–150</div>
+              <div class="niche-name">🏛️ Government Jobs</div>
+              <div class="niche-cpm">CPM ₹60–150</div>
             </div>
             <div class="niche-card" data-niche="Health & Wellness India" onclick="selectNiche(this)">
-              <div class="niche-name">🧘 Health & Wellness India</div>
-              <div class="niche-cpm">CPM: ₹50–120</div>
+              <div class="niche-name">🧘 Health & Wellness</div>
+              <div class="niche-cpm">CPM ₹50–120</div>
             </div>
           </div>
         </div>
 
-        <!-- Topic Input -->
-        <div class="form-row">
-          <label>Video Topic</label>
+        <div class="form-group">
+          <div class="form-label">Video Topic</div>
           <div style="display:flex;gap:8px">
             <input type="text" id="topicInput"
               placeholder="e.g. How to Save Income Tax Legally in India 2026"
               onkeydown="if(event.key==='Enter')startVideo()">
-            <button class="btn btn-secondary" onclick="generateTopics()" title="Get AI topic suggestions">
-              ✨ Ideas
-            </button>
+            <button class="btn-sm" onclick="generateTopics()">✨ Ideas</button>
           </div>
         </div>
 
-        <!-- Options Row -->
-        <div class="form-grid">
-          <div>
-            <label>Language</label>
+        <div class="form-row3">
+          <div class="form-group">
+            <div class="form-label">Language</div>
             <select id="langSelect">
               <option value="English">English (Indian)</option>
               <option value="Hindi">Hindi</option>
               <option value="Hinglish">Hinglish</option>
             </select>
           </div>
-          <div>
-            <label>Privacy</label>
+          <div class="form-group">
+            <div class="form-label">Privacy</div>
             <select id="privacySelect">
               <option value="private">Private</option>
               <option value="unlisted">Unlisted</option>
               <option value="public">Public</option>
             </select>
           </div>
-          <div>
-            <label>Upload to YouTube</label>
+          <div class="form-group">
+            <div class="form-label">Upload</div>
             <select id="uploadSelect">
               <option value="true">Yes, upload</option>
-              <option value="false">No, local only</option>
+              <option value="false">Local only</option>
             </select>
           </div>
         </div>
 
-        <!-- Generate Button -->
-        <button class="btn btn-primary" id="generateBtn" onclick="startVideo()">
+        <button class="btn-generate" id="generateBtn" onclick="startVideo()">
           🎬 Generate & Upload Video
         </button>
 
-        <!-- Progress Section -->
         <div class="progress-wrap" id="progressWrap">
-          <div style="margin-top:12px">
-            <div style="display:flex;justify-content:space-between;margin-bottom:4px">
-              <span class="progress-msg" id="progressMsg">Starting...</span>
-              <span class="progress-msg" id="progressPct">0%</span>
-            </div>
-            <div class="progress-bar-bg">
-              <div class="progress-bar" id="progressBar" style="width:0%"></div>
-            </div>
+          <div class="progress-header">
+            <span class="progress-msg" id="progressMsg">Starting...</span>
+            <span class="progress-pct" id="progressPct">0%</span>
           </div>
-          <div class="step-badges">
-            <div class="step-badge" id="step-script">📝 Script</div>
-            <div class="step-badge" id="step-audio">🎙️ Audio</div>
-            <div class="step-badge" id="step-footage">🎥 Footage</div>
-            <div class="step-badge" id="step-assembly">⚙️ Assembly</div>
-            <div class="step-badge" id="step-upload">☁️ Upload</div>
-            <div class="step-badge" id="step-done">✅ Done</div>
+          <div class="progress-track">
+            <div class="progress-fill" id="progressFill"></div>
+          </div>
+          <div class="steps">
+            <div class="step" id="step-script">📝 Script</div>
+            <div class="step" id="step-audio">🎙️ Audio</div>
+            <div class="step" id="step-footage">🎥 Footage</div>
+            <div class="step" id="step-assembly">⚙️ Assembly</div>
+            <div class="step" id="step-upload">☁️ Upload</div>
+            <div class="step" id="step-done">✅ Done</div>
           </div>
         </div>
 
-        <div class="alert alert-success" id="successAlert"></div>
-        <div class="alert alert-error"   id="errorAlert"></div>
+        <div class="alert alert-ok"   id="alertOk"></div>
+        <div class="alert alert-err"  id="alertErr"></div>
+        <div class="alert alert-info" id="alertInfo"></div>
+      </div>
+
+      <!-- Jobs table -->
+      <div class="panel jobs-panel">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <div class="panel-title" style="margin:0">📋 Video Queue & History</div>
+          <button class="btn-sm" onclick="loadJobs()">Refresh</button>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Topic</th><th>Niche</th><th>Status</th><th>Progress</th><th>YouTube</th>
+            </tr>
+          </thead>
+          <tbody id="jobsBody">
+            <tr><td colspan="5" style="color:var(--dim);text-align:center;padding:24px">No videos yet — generate your first one above!</td></tr>
+          </tbody>
+        </table>
       </div>
     </div>
 
     <!-- Right: Topic Ideas -->
-    <div class="topics-panel">
+    <div class="panel" style="height:fit-content;position:sticky;top:72px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-        <h2>💡 Topic Ideas</h2>
-        <button class="btn btn-secondary" onclick="generateTopics()">Refresh ✨</button>
+        <div class="panel-title" style="margin:0">💡 Topic Ideas</div>
+        <button class="btn-sm" onclick="generateTopics()">AI ✨</button>
       </div>
-      <div id="topicsList">
-        <div style="color:var(--muted);font-size:0.85rem">Loading ideas...</div>
+      <div id="topicsList" style="max-height:70vh;overflow-y:auto">
+        <div style="color:var(--dim);font-size:0.82rem;padding:8px">Loading...</div>
       </div>
     </div>
 
   </div>
-
-  <!-- Jobs Table -->
-  <div class="jobs-card">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-      <h2>📋 Video Queue & History</h2>
-      <button class="btn btn-secondary" onclick="loadJobs()">Refresh</button>
-    </div>
-    <table>
-      <thead>
-        <tr>
-          <th>Topic</th>
-          <th>Niche</th>
-          <th>Status</th>
-          <th>Progress</th>
-          <th>YouTube</th>
-        </tr>
-      </thead>
-      <tbody id="jobsBody">
-        <tr><td colspan="5" style="color:var(--muted);text-align:center;padding:24px">No videos yet. Generate your first one! 👆</td></tr>
-      </tbody>
-    </table>
-  </div>
-
 </div>
 
 <script>
-  let selectedNiche = "Personal Finance India";
+  let selectedNiche = "AI & Technology India";
   let activeJobId   = null;
   let pollTimer     = null;
+  let authPollTimer = null;
 
-  // ── Init ──────────────────────────────────────────────────────
+  // ── Init ───────────────────────────────────────────────
   document.addEventListener("DOMContentLoaded", () => {
-    checkYouTubeStatus();
+    checkYTStatus();
     loadTopicIdeas(selectedNiche);
     loadJobs();
     loadStats();
     setInterval(loadJobs, 15000);
   });
 
-  // ── Niche Selection ───────────────────────────────────────────
+  // ── Niche ──────────────────────────────────────────────
   function selectNiche(el) {
     document.querySelectorAll(".niche-card").forEach(c => c.classList.remove("selected"));
     el.classList.add("selected");
@@ -515,241 +493,257 @@
     loadTopicIdeas(selectedNiche);
   }
 
-  // ── Topic Ideas ───────────────────────────────────────────────
+  // ── Topics ─────────────────────────────────────────────
   async function loadTopicIdeas(niche) {
-    const niches = await fetch("/api/niches").then(r => r.json());
-    const data   = niches[niche] || {};
-    const ideas  = data.topic_ideas || [];
-    renderTopics(ideas);
+    const niches = await fetch("/api/niches").then(r => r.json()).catch(() => ({}));
+    renderTopics((niches[niche] || {}).topic_ideas || []);
   }
 
   async function generateTopics() {
     document.getElementById("topicsList").innerHTML =
-      '<div style="color:var(--muted);font-size:0.85rem">✨ Generating AI topic ideas...</div>';
+      '<div style="color:var(--dim);font-size:0.82rem;padding:8px">✨ AI is thinking...</div>';
     try {
-      const resp = await fetch("/api/generate-topics", {
+      const d = await fetch("/api/generate-topics", {
         method: "POST",
         headers: {"Content-Type":"application/json"},
         body: JSON.stringify({niche: selectedNiche, count: 12})
-      });
-      const data = await resp.json();
-      if (data.topics) renderTopics(data.topics);
-      else showError("Could not generate topics: " + (data.error || "Unknown error"));
-    } catch(e) {
-      showError("Network error: " + e.message);
-    }
+      }).then(r => r.json());
+      if (d.topics) renderTopics(d.topics);
+      else showErr("Could not generate: " + (d.error || ""));
+    } catch(e) { showErr(e.message); }
   }
 
   function renderTopics(topics) {
     const cpmMap = {
       "Personal Finance India": "₹100-250",
-      "AI & Technology India":  "₹80-180",
-      "Government Jobs India":  "₹60-150",
-      "Health & Wellness India":"₹50-120",
+      "AI & Technology India": "₹80-180",
+      "Government Jobs India": "₹60-150",
+      "Health & Wellness India": "₹50-120",
     };
     const cpm = cpmMap[selectedNiche] || "";
-    document.getElementById("topicsList").innerHTML = topics.map(t => `
-      <div class="topic-item" onclick="selectTopic('${t.replace(/'/g,"\\'")}')">
-        <span>${t}</span>
-        <span class="topic-cpm">${cpm}</span>
-      </div>
-    `).join("");
+    document.getElementById("topicsList").innerHTML = topics.length
+      ? topics.map((t, i) => `
+          <div class="topic-item" onclick="pickTopic(this, '${t.replace(/'/g,"\\'").replace(/"/g,"&quot;")}')">
+            <span class="topic-num">${i+1}</span>
+            <span>${t}</span>
+            <span class="topic-cpm">${cpm}</span>
+          </div>`).join("")
+      : '<div style="color:var(--dim);font-size:0.82rem;padding:8px">Click "AI ✨" to generate ideas</div>';
   }
 
-  function selectTopic(t) {
+  function pickTopic(el, t) {
     document.getElementById("topicInput").value = t;
-    document.querySelectorAll(".topic-item").forEach(el => el.classList.remove("selected"));
-    event.currentTarget.classList.add("selected");
+    document.querySelectorAll(".topic-item").forEach(e => e.classList.remove("selected"));
+    el.classList.add("selected");
   }
 
-  // ── Start Video ───────────────────────────────────────────────
+  // ── Generate ───────────────────────────────────────────
   async function startVideo() {
     const topic   = document.getElementById("topicInput").value.trim();
+    if (!topic) { alert("Please enter a topic!"); return; }
     const lang    = document.getElementById("langSelect").value;
     const privacy = document.getElementById("privacySelect").value;
     const upload  = document.getElementById("uploadSelect").value === "true";
 
-    if (!topic) { alert("Please enter a topic!"); return; }
-
     document.getElementById("generateBtn").disabled = true;
     document.getElementById("generateBtn").textContent = "⏳ Generating...";
     document.getElementById("progressWrap").style.display = "block";
-    hideAlerts();
-    resetSteps();
+    hideAlerts(); resetSteps();
     setStep("script", "active");
-    updateProgress(0, "Starting video generation...");
+    setProgress(0, "Starting pipeline...");
 
     try {
-      const resp = await fetch("/api/start-video", {
-        method: "POST",
-        headers: {"Content-Type":"application/json"},
+      const d = await fetch("/api/start-video", {
+        method: "POST", headers: {"Content-Type":"application/json"},
         body: JSON.stringify({topic, niche: selectedNiche, language: lang, privacy, upload})
-      });
-      const data = await resp.json();
-      if (data.job_id) {
-        activeJobId = data.job_id;
-        startPolling(data.job_id);
+      }).then(r => r.json());
+
+      if (d.job_id) {
+        activeJobId = d.job_id;
+        pollTimer = setInterval(() => pollJob(d.job_id), 2500);
       } else {
-        showError("Failed to start: " + (data.error || "Unknown"));
+        showErr("Failed: " + (d.error || "Unknown error"));
         resetBtn();
       }
-    } catch(e) {
-      showError("Network error: " + e.message);
-      resetBtn();
-    }
+    } catch(e) { showErr(e.message); resetBtn(); }
   }
 
-  // ── Polling ───────────────────────────────────────────────────
-  function startPolling(jobId) {
-    if (pollTimer) clearInterval(pollTimer);
-    pollTimer = setInterval(() => pollJob(jobId), 2500);
-  }
-
-  async function pollJob(jobId) {
+  async function pollJob(id) {
     try {
-      const resp = await fetch("/api/job/" + jobId);
-      const job  = await resp.json();
+      const job  = await fetch("/api/job/" + id).then(r => r.json());
       const prog = job.progress || {};
-
-      updateProgress(prog.progress || 0, prog.message || "");
-      updateStepBadges(prog.step || "");
+      setProgress(prog.progress || 0, prog.message || "");
+      updateSteps(prog.step || "");
 
       if (job.status === "done" && job.result?.success) {
         clearInterval(pollTimer);
         const url = job.result.youtube_url;
-        showSuccess(url
-          ? `✅ Video uploaded! <a href="${url}" target="_blank" class="link-yt">Watch on YouTube →</a>`
-          : `✅ Video generated: ${job.result.video_path || ""}`);
-        updateProgress(100, "Done!");
-        setStep("done", "done");
-        resetBtn();
-        loadJobs();
-        loadStats();
+        showOk(url
+          ? `✅ Uploaded! <a href="${url}" target="_blank" class="yt-link">Watch on YouTube →</a>`
+          : `✅ Video saved: ${job.result.video_path || ""}`);
+        setProgress(100, "Done!"); setStep("done", "done");
+        resetBtn(); loadJobs(); loadStats();
       } else if (job.status === "error") {
         clearInterval(pollTimer);
-        showError("❌ " + (prog.error || job.result?.error || "Generation failed"));
+        showErr("❌ " + (prog.error || prog.message || "Generation failed"));
         resetBtn();
       }
-    } catch(e) {
-      console.error("Poll error:", e);
-    }
+    } catch(e) { console.error(e); }
   }
 
-  // ── Progress UI ───────────────────────────────────────────────
-  const STEP_MAP = {
-    "script":   ["script"],
-    "audio":    ["script","audio"],
-    "footage":  ["script","audio","footage"],
-    "assembly": ["script","audio","footage","assembly"],
-    "upload":   ["script","audio","footage","assembly","upload"],
-    "done":     ["script","audio","footage","assembly","upload","done"],
+  // ── Progress UI ────────────────────────────────────────
+  const STEP_ORDER = ["script","audio","footage","assembly","upload","done"];
+  const STEP_MAP   = {
+    script:   ["script"],
+    audio:    ["script","audio"],
+    footage:  ["script","audio","footage"],
+    assembly: ["script","audio","footage","assembly"],
+    upload:   ["script","audio","footage","assembly","upload"],
+    done:     ["script","audio","footage","assembly","upload","done"],
   };
 
-  function updateStepBadges(step) {
-    const done   = STEP_MAP[step] || [];
-    const active = done[done.length-1] || step;
-    for (const key of ["script","audio","footage","assembly","upload","done"]) {
-      const el = document.getElementById("step-"+key);
-      if (!el) continue;
-      el.className = "step-badge";
-      if (done.includes(key) && key !== active) el.classList.add("done");
-      else if (key === active)                  el.classList.add("active");
-    }
-  }
-
-  function setStep(id, cls) {
-    const el = document.getElementById("step-"+id);
-    if (el) el.className = "step-badge " + cls;
-  }
-
-  function resetSteps() {
-    ["script","audio","footage","assembly","upload","done"].forEach(k => {
-      const el = document.getElementById("step-"+k);
-      if (el) el.className = "step-badge";
-    });
-  }
-
-  function updateProgress(pct, msg) {
-    document.getElementById("progressBar").style.width = pct + "%";
+  function setProgress(pct, msg) {
+    document.getElementById("progressFill").style.width = pct + "%";
     document.getElementById("progressPct").textContent = pct + "%";
     if (msg) document.getElementById("progressMsg").textContent = msg;
   }
 
-  // ── Jobs Table ────────────────────────────────────────────────
+  function updateSteps(step) {
+    const done = STEP_MAP[step] || [];
+    const cur  = done[done.length - 1];
+    STEP_ORDER.forEach(k => {
+      const el = document.getElementById("step-" + k);
+      if (!el) return;
+      el.className = "step";
+      if (done.includes(k) && k !== cur) el.classList.add("done");
+      else if (k === cur) el.classList.add("active");
+    });
+  }
+
+  function setStep(id, cls) {
+    const el = document.getElementById("step-" + id);
+    if (el) { el.className = "step " + cls; }
+  }
+
+  function resetSteps() {
+    STEP_ORDER.forEach(k => { const el = document.getElementById("step-"+k); if(el) el.className="step"; });
+  }
+
+  // ── Jobs ───────────────────────────────────────────────
   async function loadJobs() {
     const jobs = await fetch("/api/jobs").then(r => r.json()).catch(() => []);
     const tbody = document.getElementById("jobsBody");
     if (!jobs.length) {
-      tbody.innerHTML = '<tr><td colspan="5" style="color:var(--muted);text-align:center;padding:24px">No videos yet. Generate your first one! 👆</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5" style="color:var(--dim);text-align:center;padding:24px">No videos yet — generate your first one above!</td></tr>';
       return;
     }
     tbody.innerHTML = jobs.map(j => `
       <tr>
-        <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${j.topic}">${j.topic}</td>
-        <td style="font-size:0.8rem;color:var(--muted)">${j.niche||""}</td>
+        <td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${j.topic}">${j.topic}</td>
+        <td style="color:var(--dim);font-size:0.77rem">${(j.niche||"").replace(" India","")}</td>
         <td><span class="badge badge-${j.status}">${j.status}</span></td>
         <td>
-          <div style="background:var(--navy);border-radius:4px;height:6px;width:80px">
-            <div style="background:var(--saffron);height:6px;border-radius:4px;width:${j.progress||0}%"></div>
+          <div style="background:var(--surface2);border-radius:4px;height:4px;width:72px">
+            <div style="background:var(--saffron);height:4px;border-radius:4px;width:${j.progress||0}%"></div>
           </div>
         </td>
-        <td>
-          ${j.youtube_url
-            ? `<a href="${j.youtube_url}" target="_blank" class="link-yt">▶ Watch</a>`
-            : (j.status==="running" ? '<span style="color:var(--muted)">Uploading...</span>' : '—')}
+        <td>${j.youtube_url
+          ? `<a class="yt-link" href="${j.youtube_url}" target="_blank">▶ Watch</a>`
+          : (j.status==="running"?'<span style="color:var(--dim)">Uploading…</span>':'—')}
         </td>
-      </tr>
-    `).join("");
+      </tr>`).join("");
   }
 
-  // ── Stats ─────────────────────────────────────────────────────
   async function loadStats() {
-    const videos = await fetch("/api/videos").then(r => r.json()).catch(() => []);
-    document.getElementById("statVideos").textContent = videos.length || "0";
+    const v = await fetch("/api/videos").then(r => r.json()).catch(() => []);
+    document.getElementById("statVideos").textContent = v.length || "0";
   }
 
-  // ── YouTube Auth ──────────────────────────────────────────────
-  async function checkYouTubeStatus() {
-    const data = await fetch("/api/youtube-auth-status").then(r => r.json()).catch(() => ({}));
+  // ── YouTube Auth ───────────────────────────────────────
+  async function checkYTStatus() {
+    const d = await fetch("/api/youtube-auth-status").then(r => r.json()).catch(() => ({}));
+    applyYTStatus(d);
+  }
+
+  function applyYTStatus(d) {
     const dot  = document.getElementById("ytDot");
-    const txt  = document.getElementById("ytStatusText");
-    if (data.authenticated) {
-      dot.classList.add("connected");
-      txt.textContent = "YouTube: Connected ✓";
+    const text = document.getElementById("ytText");
+    const pill = document.getElementById("ytPill");
+    const name = document.getElementById("channelName");
+
+    if (d.authenticated) {
+      dot.className  = "yt-dot on";
+      pill.className = "yt-pill connected";
+      text.textContent = "YouTube Connected ✓";
+      if (d.channel?.name) name.textContent = d.channel.name;
+    } else if (d.auth_running) {
+      dot.className  = "yt-dot pulse";
+      pill.className = "yt-pill connecting";
+      text.textContent = "Connecting...";
     } else {
-      txt.textContent = "YouTube: Not connected";
+      dot.className  = "yt-dot";
+      pill.className = "yt-pill";
+      text.textContent = "Connect YouTube";
     }
+    if (d.auth_error) showErr("YouTube auth error: " + d.auth_error);
   }
 
   async function connectYouTube() {
-    const resp = await fetch("/api/youtube-auth", {method:"POST"}).then(r => r.json()).catch(e => ({error: e.message}));
-    if (resp.success) {
-      checkYouTubeStatus();
-      alert("✅ YouTube connected successfully!");
-    } else {
-      alert("YouTube auth failed. Open a terminal and run: python webapp.py\nThen click Connect YouTube again.\n\nError: " + (resp.error||""));
+    // If already connected, do nothing
+    const status = await fetch("/api/youtube-auth-status").then(r => r.json()).catch(() => ({}));
+    if (status.authenticated) {
+      showInfo("Already connected to YouTube ✓");
+      return;
     }
+
+    // Start auth in background
+    const d = await fetch("/api/youtube-auth", {method:"POST"}).then(r => r.json()).catch(e => ({error:e.message}));
+    if (d.error) { showErr(d.error); return; }
+
+    // Show modal
+    document.getElementById("authOverlay").classList.add("show");
+    document.getElementById("authSpinner").style.display = "block";
+    document.getElementById("authTitle").textContent = "Connecting YouTube...";
+    document.getElementById("authMsg").textContent = d.message || "A browser window should have opened. Complete the Google login.";
+
+    // Poll until authenticated
+    if (authPollTimer) clearInterval(authPollTimer);
+    authPollTimer = setInterval(async () => {
+      const s = await fetch("/api/youtube-auth-status").then(r => r.json()).catch(() => ({}));
+      applyYTStatus(s);
+      if (s.authenticated) {
+        clearInterval(authPollTimer);
+        document.getElementById("authSpinner").style.display = "none";
+        document.getElementById("authTitle").textContent = "✅ Connected!";
+        document.getElementById("authMsg").textContent =
+          "YouTube connected successfully" + (s.channel?.name ? ` as "${s.channel.name}"` : "") + ".";
+        setTimeout(closeAuthModal, 2000);
+      } else if (s.auth_error) {
+        clearInterval(authPollTimer);
+        document.getElementById("authTitle").textContent = "❌ Auth Failed";
+        document.getElementById("authMsg").textContent = s.auth_error + "\n\nAlternatively, run in terminal:\npython -c \"from youtube_uploader import get_credentials; get_credentials()\"";
+      }
+    }, 2000);
   }
 
-  // ── Helpers ───────────────────────────────────────────────────
-  function showSuccess(msg) {
-    const el = document.getElementById("successAlert");
-    el.innerHTML = msg;
-    el.style.display = "block";
+  function closeAuthModal() {
+    document.getElementById("authOverlay").classList.remove("show");
+    if (authPollTimer) clearInterval(authPollTimer);
+    checkYTStatus();
   }
-  function showError(msg) {
-    const el = document.getElementById("errorAlert");
-    el.innerHTML = msg;
-    el.style.display = "block";
-  }
-  function hideAlerts() {
-    document.getElementById("successAlert").style.display = "none";
-    document.getElementById("errorAlert").style.display   = "none";
+
+  // ── Alert helpers ──────────────────────────────────────
+  function showOk(msg)   { const e=document.getElementById("alertOk");   e.innerHTML=msg; e.style.display="block"; }
+  function showErr(msg)  { const e=document.getElementById("alertErr");  e.innerHTML=msg; e.style.display="block"; }
+  function showInfo(msg) { const e=document.getElementById("alertInfo"); e.innerHTML=msg; e.style.display="block"; setTimeout(()=>e.style.display="none",4000); }
+  function hideAlerts()  {
+    ["alertOk","alertErr","alertInfo"].forEach(id => {
+      document.getElementById(id).style.display = "none";
+    });
   }
   function resetBtn() {
-    const btn = document.getElementById("generateBtn");
-    btn.disabled    = false;
-    btn.textContent = "🎬 Generate & Upload Video";
+    const b = document.getElementById("generateBtn");
+    b.disabled = false; b.textContent = "🎬 Generate & Upload Video";
   }
 </script>
 </body>
