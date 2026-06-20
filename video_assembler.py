@@ -160,82 +160,87 @@ def _make_text_overlay_png(text: str, width: int, height: int,
     img.save(png_path)
 
 
-def _make_lower_third_png(headline: str, keypoint: str,
-                          width: int, height: int, png_path: str):
+def _make_simple_caption_png(headline: str, keypoint: str,
+                              width: int, height: int, png_path: str):
     """
-    Professional news-style lower-third graphic overlay.
+    Clean, minimal caption overlay — YouTube subtitle style.
 
-    Layout (bottom-left, 62% frame width):
-      ┌──────────────────────────────────────────┐
-      │ ▌  SCENE HEADLINE  (bold white, 42px)    │
-      │ ▌  Key point stat  (blue accent, 28px)   │
-      └──────────────────────────────────────────┘
-
-    Design rules:
-    - Dark glass panel with left-to-right alpha fade (solid → transparent)
-    - 6px electric-blue left accent bar
-    - headline: 5-7 words MAX — scene title
-    - keypoint: 4-6 words MAX — the stat / takeaway
+    Design (matching high-quality reference video):
+    - Dark semi-transparent rounded rectangle, centered at bottom
+    - White text, clean sans-serif, no decorative elements
+    - Line 1: scene headline (bold feel via larger font)
+    - Line 2: key stat/point (slightly smaller, accent color)
+    - NO accent bars, NO gradients, NO glass effects
     """
     img  = Image.new("RGBA", (width, height), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
 
-    panel_w  = int(width * 0.62)
-    font_h   = _get_font(42)
-    font_k   = _get_font(28)
+    headline = headline[:60].strip()
+    keypoint = keypoint[:55].strip()
 
-    # Measure text
-    headline = headline[:55].strip()
-    keypoint = keypoint[:52].strip()
-    hw, hh = _text_size(draw, headline, font_h)
-    kw, kh = _text_size(draw, keypoint, font_k)
+    font_h = _get_font(40)
+    font_k = _get_font(30)
 
-    pad_x, pad_y = 22, 16
-    bar_w  = 6
-    panel_h = hh + kh + pad_y * 3
+    pad_x, pad_y = 40, 18
+    line_gap = 10
 
-    panel_y = height - panel_h - 54   # 54px from bottom
+    # Measure lines
+    lines = []
+    if headline:
+        hw, hh = _text_size(draw, headline, font_h)
+        lines.append((headline, font_h, hw, hh, (255, 255, 255, 255)))
+    if keypoint:
+        kw, kh = _text_size(draw, keypoint, font_k)
+        lines.append((keypoint, font_k, kw, kh, (150, 210, 255, 255)))
 
-    # Glass panel — draw with left-to-right alpha gradient
-    for x in range(panel_w):
-        t = x / panel_w
-        # Solid on left, fades to transparent on right
-        alpha = int(210 * (1.0 - t ** 1.8))
-        draw.line(
-            [(x, panel_y), (x, panel_y + panel_h)],
-            fill=(5, 10, 25, alpha),
+    if not lines:
+        img.save(png_path)
+        return
+
+    box_w = max(lw for _, _, lw, _, _ in lines) + pad_x * 2
+    box_h = sum(lh for _, _, _, lh, _ in lines) + pad_y * 2 + line_gap * (len(lines) - 1)
+
+    # Cap width at 80% of frame
+    box_w = min(box_w, int(width * 0.80))
+
+    # Center horizontally, 60px from bottom
+    box_x = (width - box_w) // 2
+    box_y = height - box_h - 60
+
+    # Dark rounded pill — clean and simple
+    try:
+        draw.rounded_rectangle(
+            [box_x, box_y, box_x + box_w, box_y + box_h],
+            radius=14,
+            fill=(0, 0, 0, 175),
+        )
+    except AttributeError:
+        # Pillow < 8.2 fallback
+        draw.rectangle(
+            [box_x, box_y, box_x + box_w, box_y + box_h],
+            fill=(0, 0, 0, 175),
         )
 
-    # Left accent bar (solid electric-blue)
-    draw.rectangle(
-        [0, panel_y, bar_w, panel_y + panel_h],
-        fill=(0, 120, 255, 255),
-    )
-
-    # Thin top edge line (blue, fades right)
-    for x in range(panel_w):
-        t = x / panel_w
-        alpha = int(255 * (1.0 - t ** 1.2))
-        draw.point((x, panel_y), fill=(0, 120, 255, alpha))
-
-    # Headline text + shadow
-    tx = bar_w + pad_x
-    ty_h = panel_y + pad_y
-    draw.text((tx + 2, ty_h + 2), headline, font=font_h, fill=(0, 0, 0, 140))
-    draw.text((tx,     ty_h),     headline, font=font_h, fill=(255, 255, 255, 255))
-
-    # Key point text (sky-blue accent colour)
-    ty_k = ty_h + hh + pad_y // 2
-    draw.text((tx + 1, ty_k + 1), keypoint, font=font_k, fill=(0, 0, 0, 120))
-    draw.text((tx,     ty_k),     keypoint, font=font_k, fill=(80, 200, 255, 255))
+    # Draw text lines, each centered
+    y = box_y + pad_y
+    for text, font, tw, th, color in lines:
+        x = (width - tw) // 2
+        draw.text((x, y), text, font=font, fill=color)
+        y += th + line_gap
 
     img.save(png_path)
 
 
+def _make_lower_third_png(headline: str, keypoint: str,
+                          width: int, height: int, png_path: str):
+    """Alias — routes to the clean simple caption style."""
+    _make_simple_caption_png(headline, keypoint, width, height, png_path)
+
+
 def _make_caption_bar_png(text: str, width: int, height: int,
                            bar_h: int, fontsize: int, png_path: str):
-    """Legacy — kept for fallback compatibility. Use _make_lower_third_png instead."""
-    _make_lower_third_png(text, "", width, height, png_path)
+    """Legacy — kept for fallback compatibility."""
+    _make_simple_caption_png(text, "", width, height, png_path)
 
 
 def _make_card_image(lines: list, bg_color: tuple, text_colors: list,
@@ -414,22 +419,10 @@ def build_scene_clip(scene: dict, video_id: str, tmp_dir: str):
         else:
             create_color_background(footage_out, duration)
 
-    # Step 2: text overlay — skip for animation scenes (built-in text)
+    # Step 2: pass footage through unchanged — no busy badge overlays
     overlay_out = os.path.join(tmp_dir, f"scene{sid:02d}_overlay.mp4")
-    if used_animation or not os.path.exists(footage_out):
-        if os.path.exists(footage_out):
-            shutil.copy2(footage_out, overlay_out)
-    else:
-        # Scene headline as a top-left scene number badge (subtle)
-        scene_headline = scene.get("scene_headline", "").strip()
-        if scene_headline:
-            ok = add_text_overlay(footage_out, overlay_out,
-                                  text=scene_headline,
-                                  fontsize=32, color="0x50c8ff", box=True)
-            if not ok or not os.path.exists(overlay_out):
-                shutil.copy2(footage_out, overlay_out)
-        else:
-            shutil.copy2(footage_out, overlay_out)
+    if os.path.exists(footage_out):
+        shutil.copy2(footage_out, overlay_out)
 
     # Step 3: lower-third — headline + key stat (SHORT text only)
     caption_out   = os.path.join(tmp_dir, f"scene{sid:02d}_caption.mp4")
@@ -460,8 +453,9 @@ def build_scene_clip(scene: dict, video_id: str, tmp_dir: str):
         if ok and os.path.exists(scene_with_audio):
             merged_out = scene_with_audio
 
-    # Step 5: avatar overlay (footage scenes only — animation scenes already have text)
-    if not used_animation and os.path.exists(merged_out):
+    # Step 5: avatar overlay — disabled by default (set ENABLE_AVATAR=true in .env to opt in)
+    # The anime avatar hurts production quality. Replace with a real character or disable.
+    if os.getenv("ENABLE_AVATAR", "false").lower() == "true" and not used_animation and os.path.exists(merged_out):
         try:
             from avatar_engine import create_talking_avatar_video, overlay_avatar_on_video
             dur_for_avatar = scene.get("actual_duration_sec", duration)
@@ -483,14 +477,56 @@ def build_scene_clip(scene: dict, video_id: str, tmp_dir: str):
 # ── Cards ─────────────────────────────────────────────────────────────────
 
 def create_title_card(title: str, subtitle: str, duration_sec: float, output_path: str) -> bool:
+    """
+    Clean minimal title card — charcoal background, large white title, small accent subtitle.
+    Inspired by professional tech explainer videos: no clutter, high contrast, confident typography.
+    """
     png_path = output_path + "_title.png"
-    _make_card_image(
-        lines=[title[:55], subtitle[:45]],
-        bg_color=(26, 26, 46),
-        text_colors=[(255, 215, 0), (255, 255, 255)],
-        font_sizes=[68, 40],
-        png_path=png_path,
-    )
+
+    img  = Image.new("RGB", (VIDEO_WIDTH, VIDEO_HEIGHT), (10, 10, 12))  # near-black
+    draw = ImageDraw.Draw(img)
+
+    title   = title[:70].strip()
+    subtitle = subtitle[:50].strip()
+
+    font_t = _get_font(72)
+    font_s = _get_font(36)
+
+    # Wrap title if needed
+    title_lines = textwrap.wrap(title, width=32)[:3]
+    sub_lines   = textwrap.wrap(subtitle, width=48)[:1]
+
+    # Measure total block height
+    total_h = 0
+    rendered = []
+    for line in title_lines:
+        tw, th = _text_size(draw, line, font_t)
+        rendered.append((line, font_t, tw, th, (255, 255, 255)))
+        total_h += th + 16
+    if sub_lines:
+        tw, th = _text_size(draw, sub_lines[0], font_s)
+        rendered.append((sub_lines[0], font_s, tw, th, (80, 160, 255)))
+        total_h += 32 + th  # extra gap before subtitle
+
+    # Draw centered block
+    y = (VIDEO_HEIGHT - total_h) // 2
+    gap_added = False
+    for i, (text, font, tw, th, color) in enumerate(rendered):
+        # Add extra gap before subtitle line
+        if i > 0 and font == font_s and not gap_added:
+            y += 20
+            gap_added = True
+        x = (VIDEO_WIDTH - tw) // 2
+        draw.text((x, y), text, font=font, fill=color)
+        y += th + 16
+
+    # Thin accent line above title (electric blue, 3px)
+    line_y = (VIDEO_HEIGHT - total_h) // 2 - 24
+    line_w = 120
+    line_x = (VIDEO_WIDTH - line_w) // 2
+    draw.rectangle([line_x, line_y, line_x + line_w, line_y + 3], fill=(0, 120, 255))
+
+    img.save(png_path)
     ok = _image_to_video(png_path, duration_sec, output_path, with_audio=True)
     try:
         os.remove(png_path)
@@ -500,12 +536,13 @@ def create_title_card(title: str, subtitle: str, duration_sec: float, output_pat
 
 
 def create_outro_card(channel_name: str, duration_sec: float, output_path: str) -> bool:
+    """Clean outro card — dark background, orange CTA, channel name."""
     png_path = output_path + "_outro.png"
     _make_card_image(
-        lines=["Like  |  Subscribe  |  Notify", channel_name, "New videos every week!"],
-        bg_color=(13, 13, 13),
-        text_colors=[(255, 107, 0), (255, 255, 255), (204, 204, 204)],
-        font_sizes=[52, 38, 30],
+        lines=["👍 Like  ·  Subscribe  ·  🔔 Notify", channel_name, "New video every week"],
+        bg_color=(8, 8, 10),
+        text_colors=[(255, 100, 0), (255, 255, 255), (160, 160, 160)],
+        font_sizes=[48, 42, 28],
         png_path=png_path,
     )
     ok = _image_to_video(png_path, duration_sec, output_path, with_audio=True)
