@@ -160,21 +160,82 @@ def _make_text_overlay_png(text: str, width: int, height: int,
     img.save(png_path)
 
 
+def _make_lower_third_png(headline: str, keypoint: str,
+                          width: int, height: int, png_path: str):
+    """
+    Professional news-style lower-third graphic overlay.
+
+    Layout (bottom-left, 62% frame width):
+      ┌──────────────────────────────────────────┐
+      │ ▌  SCENE HEADLINE  (bold white, 42px)    │
+      │ ▌  Key point stat  (blue accent, 28px)   │
+      └──────────────────────────────────────────┘
+
+    Design rules:
+    - Dark glass panel with left-to-right alpha fade (solid → transparent)
+    - 6px electric-blue left accent bar
+    - headline: 5-7 words MAX — scene title
+    - keypoint: 4-6 words MAX — the stat / takeaway
+    """
+    img  = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+
+    panel_w  = int(width * 0.62)
+    font_h   = _get_font(42)
+    font_k   = _get_font(28)
+
+    # Measure text
+    headline = headline[:55].strip()
+    keypoint = keypoint[:52].strip()
+    hw, hh = _text_size(draw, headline, font_h)
+    kw, kh = _text_size(draw, keypoint, font_k)
+
+    pad_x, pad_y = 22, 16
+    bar_w  = 6
+    panel_h = hh + kh + pad_y * 3
+
+    panel_y = height - panel_h - 54   # 54px from bottom
+
+    # Glass panel — draw with left-to-right alpha gradient
+    for x in range(panel_w):
+        t = x / panel_w
+        # Solid on left, fades to transparent on right
+        alpha = int(210 * (1.0 - t ** 1.8))
+        draw.line(
+            [(x, panel_y), (x, panel_y + panel_h)],
+            fill=(5, 10, 25, alpha),
+        )
+
+    # Left accent bar (solid electric-blue)
+    draw.rectangle(
+        [0, panel_y, bar_w, panel_y + panel_h],
+        fill=(0, 120, 255, 255),
+    )
+
+    # Thin top edge line (blue, fades right)
+    for x in range(panel_w):
+        t = x / panel_w
+        alpha = int(255 * (1.0 - t ** 1.2))
+        draw.point((x, panel_y), fill=(0, 120, 255, alpha))
+
+    # Headline text + shadow
+    tx = bar_w + pad_x
+    ty_h = panel_y + pad_y
+    draw.text((tx + 2, ty_h + 2), headline, font=font_h, fill=(0, 0, 0, 140))
+    draw.text((tx,     ty_h),     headline, font=font_h, fill=(255, 255, 255, 255))
+
+    # Key point text (sky-blue accent colour)
+    ty_k = ty_h + hh + pad_y // 2
+    draw.text((tx + 1, ty_k + 1), keypoint, font=font_k, fill=(0, 0, 0, 120))
+    draw.text((tx,     ty_k),     keypoint, font=font_k, fill=(80, 200, 255, 255))
+
+    img.save(png_path)
+
+
 def _make_caption_bar_png(text: str, width: int, height: int,
                            bar_h: int, fontsize: int, png_path: str):
-    """Semi-transparent caption bar at the bottom of the frame."""
-    img = Image.new("RGBA", (width, height), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(img)
-    bar_y = height - bar_h
-    draw.rectangle([0, bar_y, width, height], fill=(0, 0, 0, 185))
-    font = _get_font(fontsize)
-    lines = textwrap.wrap(text[:130], width=75)
-    caption = "  ".join(lines[:2])
-    tw, th = _text_size(draw, caption, font)
-    x = max(0, (width - tw) // 2)
-    y = bar_y + (bar_h - th) // 2
-    draw.text((x, y), caption, font=font, fill=(255, 255, 255, 255))
-    img.save(png_path)
+    """Legacy — kept for fallback compatibility. Use _make_lower_third_png instead."""
+    _make_lower_third_png(text, "", width, height, png_path)
 
 
 def _make_card_image(lines: list, bg_color: tuple, text_colors: list,
@@ -283,17 +344,23 @@ def add_text_overlay(input_path: str, output_path: str, text: str,
     return ok
 
 
-def add_caption_bar(input_path: str, output_path: str,
-                    text: str, duration_sec: float) -> bool:
-    png_path = output_path + "_cap.png"
-    _make_caption_bar_png(text, VIDEO_WIDTH, VIDEO_HEIGHT,
-                          bar_h=110, fontsize=34, png_path=png_path)
+def add_lower_third(input_path: str, output_path: str,
+                    headline: str, keypoint: str = "") -> bool:
+    """Overlay a professional news-style lower-third on a video clip."""
+    png_path = output_path + "_lt.png"
+    _make_lower_third_png(headline, keypoint, VIDEO_WIDTH, VIDEO_HEIGHT, png_path)
     ok = _overlay_png_on_video(input_path, png_path, output_path)
     try:
         os.remove(png_path)
     except Exception:
         pass
     return ok
+
+
+def add_caption_bar(input_path: str, output_path: str,
+                    text: str, duration_sec: float) -> bool:
+    """Wrapper kept for compatibility — routes to lower-third."""
+    return add_lower_third(input_path, output_path, headline=text)
 
 
 def merge_video_audio(video_path: str, audio_path: str, output_path: str) -> bool:
@@ -347,26 +414,39 @@ def build_scene_clip(scene: dict, video_id: str, tmp_dir: str):
         else:
             create_color_background(footage_out, duration)
 
-    # Step 2: text overlay — skip for animation scenes (they have built-in text)
+    # Step 2: text overlay — skip for animation scenes (built-in text)
     overlay_out = os.path.join(tmp_dir, f"scene{sid:02d}_overlay.mp4")
-    if used_animation:
-        shutil.copy2(footage_out, overlay_out)
-    elif on_screen and os.path.exists(footage_out):
-        ok = add_text_overlay(footage_out, overlay_out, text=on_screen)
-        if not ok or not os.path.exists(overlay_out):
+    if used_animation or not os.path.exists(footage_out):
+        if os.path.exists(footage_out):
             shutil.copy2(footage_out, overlay_out)
-    elif os.path.exists(footage_out):
-        shutil.copy2(footage_out, overlay_out)
+    else:
+        # Scene headline as a top-left scene number badge (subtle)
+        scene_headline = scene.get("scene_headline", "").strip()
+        if scene_headline:
+            ok = add_text_overlay(footage_out, overlay_out,
+                                  text=scene_headline,
+                                  fontsize=32, color="0x50c8ff", box=True)
+            if not ok or not os.path.exists(overlay_out):
+                shutil.copy2(footage_out, overlay_out)
+        else:
+            shutil.copy2(footage_out, overlay_out)
 
-    # Step 3: caption bar — use on_screen_text (short AI key-point), NOT narration
-    caption_out  = os.path.join(tmp_dir, f"scene{sid:02d}_caption.mp4")
-    on_screen    = scene.get("on_screen_text", "").strip()
-    # Fallback: extract first clean sentence from narration (max 80 chars)
-    if not on_screen and narration:
-        first_sent = re.split(r'[.!?]', narration)[0].strip()
-        on_screen  = first_sent[:80]
-    if on_screen and os.path.exists(overlay_out):
-        ok = add_caption_bar(overlay_out, caption_out, on_screen, duration)
+    # Step 3: lower-third — headline + key stat (SHORT text only)
+    caption_out   = os.path.join(tmp_dir, f"scene{sid:02d}_caption.mp4")
+    scene_headline = scene.get("scene_headline", "").strip()
+    key_stat       = scene.get("on_screen_text", "").strip()
+
+    # STRICT: never show narration text. If on_screen_text is too long, truncate hard.
+    if len(key_stat) > 55:
+        # Try to use just the first meaningful phrase
+        key_stat = re.split(r'[.!?,]', key_stat)[0].strip()[:50]
+    if len(scene_headline) > 45:
+        scene_headline = scene_headline[:42].rstrip() + "..."
+
+    if (scene_headline or key_stat) and os.path.exists(overlay_out) and not used_animation:
+        ok = add_lower_third(overlay_out, caption_out,
+                             headline=scene_headline or key_stat,
+                             keypoint=key_stat if scene_headline else "")
         if not ok or not os.path.exists(caption_out):
             shutil.copy2(overlay_out, caption_out)
     elif os.path.exists(overlay_out):

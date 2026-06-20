@@ -87,7 +87,7 @@ class VideoGenerationPipeline:
 
         try:
             # ── Step 1: Generate Script ──────────────────────────────
-            progress("script", f"Writing script for: {topic}", 5)
+            progress("script", f"Writing {duration_min}-min script for: {topic}", 5)
             from script_generator import generate_script
             script = generate_script(
                 topic=topic,
@@ -95,15 +95,23 @@ class VideoGenerationPipeline:
                 channel_name=self.channel_name,
                 language=self.language,
                 duration_min=duration_min,
+                max_retries=2,
             )
             result["script"] = script
             result["title"]  = script.get("title", topic)
+
+            scenes       = script.get("scenes", [])
+            total_words  = sum(len(s.get("narration","").split()) for s in scenes)
+            est_duration = total_words / 130  # ~130 wpm
 
             # Save script JSON
             script_path = os.path.join(VIDEOS_DIR, f"{video_id}_script.json")
             with open(script_path, "w", encoding="utf-8") as f:
                 json.dump(script, f, indent=2, ensure_ascii=False)
-            progress("script", f"Script ready: '{script.get('title')}'", 15)
+            progress("script",
+                     f"Script ready: '{script.get('title')}' | "
+                     f"{len(scenes)} scenes | {total_words} words | "
+                     f"~{est_duration/60:.1f} min estimated", 15)
 
             # ── Step 2: Generate TTS Audio ───────────────────────────
             progress("audio", "Generating voiceover audio...", 20)
