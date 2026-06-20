@@ -21,9 +21,10 @@ from config import (
 
 logger = logging.getLogger(__name__)
 
-BGM_DIR   = os.path.join(BASE_DIR, "assets", "bgm")
-FONT_DIR  = os.path.join(BASE_DIR, "assets", "fonts")
-FONT_PATH = os.path.join(FONT_DIR, "NotoSans-Bold.ttf")
+BGM_DIR        = os.path.join(BASE_DIR, "assets", "bgm")
+FONT_DIR       = os.path.join(BASE_DIR, "assets", "fonts")
+FONT_PATH      = os.path.join(FONT_DIR, "Inter-Bold.ttf")       # primary — bold headings
+FONT_PATH_REG  = os.path.join(FONT_DIR, "Inter-Regular.ttf")    # regular — captions
 
 os.makedirs(BGM_DIR, exist_ok=True)
 os.makedirs(FONT_DIR, exist_ok=True)
@@ -42,15 +43,19 @@ def _ensure_bgm():
 
 _ensure_bgm()
 
-# Auto-download NotoSans font if missing
-if not os.path.exists(FONT_PATH):
-    try:
-        url = "https://github.com/googlefonts/noto-fonts/raw/main/hinted/ttf/NotoSans/NotoSans-Bold.ttf"
-        logger.info("Downloading NotoSans-Bold font...")
-        urllib.request.urlretrieve(url, FONT_PATH)
-        logger.info(f"Font saved to {FONT_PATH}")
-    except Exception as e:
-        logger.warning(f"Font download failed: {e} — will use system font")
+# Auto-download Inter font if missing — cleaner, more modern than NotoSans
+_INTER_FONTS = {
+    FONT_PATH:     "https://github.com/rsms/inter/raw/master/docs/font-files/Inter-Bold.ttf",
+    FONT_PATH_REG: "https://github.com/rsms/inter/raw/master/docs/font-files/Inter-Regular.ttf",
+}
+for _fp, _url in _INTER_FONTS.items():
+    if not os.path.exists(_fp):
+        try:
+            logger.info(f"Downloading Inter font: {os.path.basename(_fp)} ...")
+            urllib.request.urlretrieve(_url, _fp)
+            logger.info(f"Font saved to {_fp}")
+        except Exception as e:
+            logger.warning(f"Font download failed ({os.path.basename(_fp)}): {e} — will use system font")
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────
@@ -105,22 +110,31 @@ def add_silent_audio(input_path: str, output_path: str, duration: float) -> bool
     return run_ffmpeg(cmd, "add_silent_audio")
 
 
-def _get_font(size: int):
-    """Load a TrueType font at given size, with fallback chain."""
-    candidates = [
-        FONT_PATH,
-        "/System/Library/Fonts/Helvetica.ttc",
-        "/System/Library/Fonts/SFNS.ttf",
-        "/Library/Fonts/Arial.ttf",
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",  # Linux
-    ]
+def _get_font(size: int, weight: str = "bold"):
+    """Load Inter (or fallback) at given size. weight='bold'|'regular'."""
+    if weight == "regular":
+        candidates = [
+            FONT_PATH_REG,
+            "/System/Library/Fonts/Helvetica.ttc",
+            "/System/Library/Fonts/SFNS.ttf",
+            "/Library/Fonts/Arial.ttf",
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+            FONT_PATH,  # bold fallback
+        ]
+    else:
+        candidates = [
+            FONT_PATH,
+            "/System/Library/Fonts/Helvetica.ttc",
+            "/System/Library/Fonts/SFNS.ttf",
+            "/Library/Fonts/Arial Bold.ttf",
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        ]
     for path in candidates:
         if os.path.exists(path):
             try:
                 return ImageFont.truetype(path, size)
             except Exception:
                 continue
-    # Last resort: PIL built-in (tiny, but at least it works)
     return ImageFont.load_default()
 
 
@@ -178,8 +192,8 @@ def _make_simple_caption_png(headline: str, keypoint: str,
     headline = headline[:60].strip()
     keypoint = keypoint[:55].strip()
 
-    font_h = _get_font(40)
-    font_k = _get_font(30)
+    font_h = _get_font(40, weight="bold")
+    font_k = _get_font(30, weight="regular")
 
     pad_x, pad_y = 40, 18
     line_gap = 10
@@ -382,8 +396,8 @@ def merge_video_audio(video_path: str, audio_path: str, output_path: str) -> boo
     return run_ffmpeg(cmd, "merge_av")
 
 
-def build_scene_clip(scene: dict, video_id: str, tmp_dir: str):
-    """Build one scene: footage/animation → overlay → caption → merge audio."""
+def build_scene_clip(scene: dict, video_id: str, tmp_dir: str, show_subtitles: bool = False):
+    """Build one scene: footage/animation → caption (optional) → merge audio."""
     sid        = scene["id"]
     audio_path = scene.get("audio_path")
     footage    = scene.get("footage_paths", [])
@@ -424,23 +438,22 @@ def build_scene_clip(scene: dict, video_id: str, tmp_dir: str):
     if os.path.exists(footage_out):
         shutil.copy2(footage_out, overlay_out)
 
-    # Step 3: lower-third — headline + key stat (SHORT text only)
-    caption_out   = os.path.join(tmp_dir, f"scene{sid:02d}_caption.mp4")
-    scene_headline = scene.get("scene_headline", "").strip()
-    key_stat       = scene.get("on_screen_text", "").strip()
-
-    # STRICT: never show narration text. If on_screen_text is too long, truncate hard.
-    if len(key_stat) > 55:
-        # Try to use just the first meaningful phrase
-        key_stat = re.split(r'[.!?,]', key_stat)[0].strip()[:50]
-    if len(scene_headline) > 45:
-        scene_headline = scene_headline[:42].rstrip() + "..."
-
-    if (scene_headline or key_stat) and os.path.exists(overlay_out) and not used_animation:
-        ok = add_lower_third(overlay_out, caption_out,
-                             headline=scene_headline or key_stat,
-                             keypoint=key_stat if scene_headline else "")
-        if not ok or not os.path.exists(caption_out):
+    # Step 3: captions — only if user explicitly enabled subtitles
+    caption_out = os.path.join(tmp_dir, f"scene{sid:02d}_caption.mp4")
+    if show_subtitles and not used_animation and os.path.exists(overlay_out):
+        scene_headline = scene.get("scene_headline", "").strip()
+        key_stat       = scene.get("on_screen_text", "").strip()
+        if len(key_stat) > 55:
+            key_stat = re.split(r'[.!?,]', key_stat)[0].strip()[:50]
+        if len(scene_headline) > 45:
+            scene_headline = scene_headline[:42].rstrip() + "..."
+        if scene_headline or key_stat:
+            ok = add_lower_third(overlay_out, caption_out,
+                                 headline=scene_headline or key_stat,
+                                 keypoint=key_stat if scene_headline else "")
+            if not ok or not os.path.exists(caption_out):
+                shutil.copy2(overlay_out, caption_out)
+        else:
             shutil.copy2(overlay_out, caption_out)
     elif os.path.exists(overlay_out):
         shutil.copy2(overlay_out, caption_out)
@@ -568,43 +581,62 @@ def _ensure_audio(clip_path: str, tmp_dir: str, idx: int) -> str:
 
 def concatenate_clips(clip_paths: list, output_path: str, tmp_dir: str) -> bool:
     """
-    Normalise all clips to identical stream parameters then concatenate.
-    Each clip is re-encoded to 1920x1080 h264 + 44100Hz AAC before joining,
-    so the concat demuxer never sees mismatched streams.
+    Normalise all clips to 1920x1080 h264 + 44100Hz AAC, add fade-in/out
+    transitions, then concatenate. The 0.4s fade-to-black between scenes
+    prevents abrupt hard-cuts and gives the viewer a natural breathing point.
     """
+    FADE_DUR = 0.4   # seconds — fade out at end, fade in at start of each clip
+
     ready_clips = []
     for i, p in enumerate(clip_paths):
         if not os.path.exists(p):
             logger.warning(f"Clip missing, skipping: {p}")
             continue
-        norm = os.path.join(tmp_dir, f"norm_{i:03d}.mp4")
-        has_a = has_audio_stream(p)
-        audio_filter = "aresample=44100,aformat=sample_fmts=fltp:channel_layouts=stereo" if has_a else ""
-        audio_input  = [] if has_a else ["-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo"]
-        a_map        = "1:a:0" if not has_a else "0:a:0"
 
-        cmd = [
-            "ffmpeg", "-y",
-            "-i", p,
-        ] + audio_input + [
-            "-map", "0:v:0", "-map", a_map,
-            "-vf", f"scale={VIDEO_WIDTH}:{VIDEO_HEIGHT}:force_original_aspect_ratio=decrease,"
-                   f"pad={VIDEO_WIDTH}:{VIDEO_HEIGHT}:(ow-iw)/2:(oh-ih)/2,fps={VIDEO_FPS}",
-            "-c:v", "libx264", "-preset", "fast", "-crf", "23", "-pix_fmt", "yuv420p",
-            "-c:a", "aac", "-ar", "44100", "-ac", "2", "-b:a", "128k",
-            "-t", str(get_video_duration(p)) if not has_a else "999999",
-            norm,
-        ]
+        dur   = get_video_duration(p)
+        has_a = has_audio_stream(p)
+        norm  = os.path.join(tmp_dir, f"norm_{i:03d}.mp4")
+
+        # Fade start/end times — clamp so fade never exceeds clip length
+        fade_in_end  = min(FADE_DUR, dur * 0.3)
+        fade_out_st  = max(0.0, dur - FADE_DUR)
+
+        vf = (
+            f"scale={VIDEO_WIDTH}:{VIDEO_HEIGHT}:force_original_aspect_ratio=decrease,"
+            f"pad={VIDEO_WIDTH}:{VIDEO_HEIGHT}:(ow-iw)/2:(oh-ih)/2,"
+            f"fps={VIDEO_FPS},"
+            f"fade=t=in:st=0:d={fade_in_end}:color=black,"
+            f"fade=t=out:st={fade_out_st}:d={FADE_DUR}:color=black"
+        )
+
         if has_a:
-            # simpler path when audio already present
+            af = (
+                f"aresample=44100,"
+                f"afade=t=in:st=0:d={fade_in_end},"
+                f"afade=t=out:st={fade_out_st}:d={FADE_DUR}"
+            )
             cmd = [
                 "ffmpeg", "-y", "-i", p,
-                "-vf", f"scale={VIDEO_WIDTH}:{VIDEO_HEIGHT}:force_original_aspect_ratio=decrease,"
-                       f"pad={VIDEO_WIDTH}:{VIDEO_HEIGHT}:(ow-iw)/2:(oh-ih)/2,fps={VIDEO_FPS}",
+                "-vf", vf,
+                "-af", af,
                 "-c:v", "libx264", "-preset", "fast", "-crf", "23", "-pix_fmt", "yuv420p",
                 "-c:a", "aac", "-ar", "44100", "-ac", "2", "-b:a", "128k",
                 norm,
             ]
+        else:
+            cmd = [
+                "ffmpeg", "-y",
+                "-i", p,
+                "-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo",
+                "-map", "0:v:0", "-map", "1:a:0",
+                "-vf", vf,
+                "-af", f"afade=t=in:st=0:d={fade_in_end},afade=t=out:st={fade_out_st}:d={FADE_DUR}",
+                "-c:v", "libx264", "-preset", "fast", "-crf", "23", "-pix_fmt", "yuv420p",
+                "-c:a", "aac", "-ar", "44100", "-ac", "2", "-b:a", "128k",
+                "-t", str(dur),
+                norm,
+            ]
+
         ok = run_ffmpeg(cmd, f"normalise_{i}")
         if ok and os.path.exists(norm):
             ready_clips.append(norm)
@@ -702,7 +734,8 @@ def add_background_music(
 
 # ── Main assembly ─────────────────────────────────────────────────────────
 
-def assemble_video(script: dict, scenes: list, video_id: str, channel_name: str, niche: str = ""):
+def assemble_video(script: dict, scenes: list, video_id: str, channel_name: str,
+                   niche: str = "", show_subtitles: bool = False):
     """Full pipeline: title + scenes + outro → concat → bgm → final MP4."""
     tmp_dir = os.path.join(VIDEOS_DIR, f"tmp_{video_id}")
     os.makedirs(tmp_dir, exist_ok=True)
@@ -721,7 +754,7 @@ def assemble_video(script: dict, scenes: list, video_id: str, channel_name: str,
     # Scene clips
     for scene in scenes:
         logger.info(f"Assembling scene {scene['id']}...")
-        clip = build_scene_clip(scene, video_id, tmp_dir)
+        clip = build_scene_clip(scene, video_id, tmp_dir, show_subtitles=show_subtitles)
         if clip and os.path.exists(clip):
             all_clips.append(clip)
 

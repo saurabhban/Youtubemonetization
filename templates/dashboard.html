@@ -410,6 +410,16 @@
           </div>
         </div>
 
+        <div class="form-row3" style="margin-bottom:14px">
+          <div class="form-group" style="grid-column:1/-1;display:flex;align-items:center;gap:10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:10px 14px">
+            <input type="checkbox" id="subtitlesToggle" style="width:16px;height:16px;accent-color:#ff6b00;cursor:pointer;flex-shrink:0">
+            <div>
+              <div style="font-size:0.82rem;font-weight:600;color:#fff">Show Subtitles on Video</div>
+              <div style="font-size:0.72rem;color:var(--dim);margin-top:2px">Off by default — enable to burn key stats &amp; scene titles into the video</div>
+            </div>
+          </div>
+        </div>
+
         <button class="btn-generate" id="generateBtn" onclick="startVideo()">
           🎬 Generate & Upload Video
         </button>
@@ -539,11 +549,12 @@
 
   // ── Generate ───────────────────────────────────────────
   async function startVideo() {
-    const topic   = document.getElementById("topicInput").value.trim();
+    const topic          = document.getElementById("topicInput").value.trim();
     if (!topic) { alert("Please enter a topic!"); return; }
-    const lang    = document.getElementById("langSelect").value;
-    const privacy = document.getElementById("privacySelect").value;
-    const upload  = document.getElementById("uploadSelect").value === "true";
+    const lang           = document.getElementById("langSelect").value;
+    const privacy        = document.getElementById("privacySelect").value;
+    const upload         = document.getElementById("uploadSelect").value === "true";
+    const show_subtitles = document.getElementById("subtitlesToggle").checked;
 
     document.getElementById("generateBtn").disabled = true;
     document.getElementById("generateBtn").textContent = "⏳ Generating...";
@@ -555,7 +566,7 @@
     try {
       const d = await fetch("/api/start-video", {
         method: "POST", headers: {"Content-Type":"application/json"},
-        body: JSON.stringify({topic, niche: selectedNiche, language: lang, privacy, upload})
+        body: JSON.stringify({topic, niche: selectedNiche, language: lang, privacy, upload, show_subtitles})
       }).then(r => r.json());
 
       if (d.job_id) {

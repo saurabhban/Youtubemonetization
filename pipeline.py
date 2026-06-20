@@ -62,17 +62,19 @@ class VideoGenerationPipeline:
         publish_at: str = None,
         duration_min: int = 12,
         on_progress=None,
+        show_subtitles: bool = False,
     ) -> dict:
         """
         Run the full pipeline for a given topic.
 
         Args:
-            topic:       Video topic/title
-            privacy:     YouTube privacy ("private"|"unlisted"|"public")
-            upload:      Whether to upload to YouTube
-            publish_at:  ISO 8601 scheduled publish time
-            duration_min: Target video duration in minutes
-            on_progress: Callback fn(status_dict) for real-time updates
+            topic:          Video topic/title
+            privacy:        YouTube privacy ("private"|"unlisted"|"public")
+            upload:         Whether to upload to YouTube
+            publish_at:     ISO 8601 scheduled publish time
+            duration_min:   Target video duration in minutes
+            on_progress:    Callback fn(status_dict) for real-time updates
+            show_subtitles: Overlay caption text on video (default False)
 
         Returns:
             result dict with video_path, youtube_url, script, metadata
@@ -131,7 +133,8 @@ class VideoGenerationPipeline:
             # ── Step 4: Assemble Video ───────────────────────────────
             progress("assembly", "Assembling final video with FFmpeg...", 70)
             from video_assembler import assemble_video
-            video_path = assemble_video(script, scenes, video_id, self.channel_name, niche=self.niche)
+            video_path = assemble_video(script, scenes, video_id, self.channel_name,
+                                        niche=self.niche, show_subtitles=show_subtitles)
 
             if not video_path or not os.path.exists(video_path):
                 raise RuntimeError("Video assembly failed — check FFmpeg logs")

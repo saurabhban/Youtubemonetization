@@ -23,7 +23,7 @@ JOBS: dict[str, dict] = {}
 
 
 def run_pipeline_async(job_id: str, topic: str, niche: str, language: str,
-                       privacy: str, upload: bool):
+                       privacy: str, upload: bool, show_subtitles: bool = False):
     """Run pipeline in background thread, update JOBS dict."""
     from pipeline import VideoGenerationPipeline
     JOBS[job_id]["status"] = "running"
@@ -41,6 +41,7 @@ def run_pipeline_async(job_id: str, topic: str, niche: str, language: str,
         privacy=privacy,
         upload=upload,
         on_progress=on_progress,
+        show_subtitles=show_subtitles,
     )
     JOBS[job_id]["result"]  = result
     JOBS[job_id]["status"]  = "done" if result["success"] else "error"
@@ -83,12 +84,13 @@ def api_generate_topics():
 @app.route("/api/start-video", methods=["POST"])
 def api_start_video():
     """Kick off video generation for a topic."""
-    data     = request.get_json()
-    topic    = data.get("topic", "").strip()
-    niche    = data.get("niche",    CHANNEL_NICHE)
-    language = data.get("language", CHANNEL_LANGUAGE)
-    privacy  = data.get("privacy",  "private")
-    upload   = data.get("upload",   True)
+    data            = request.get_json()
+    topic           = data.get("topic", "").strip()
+    niche           = data.get("niche",           CHANNEL_NICHE)
+    language        = data.get("language",        CHANNEL_LANGUAGE)
+    privacy         = data.get("privacy",         "private")
+    upload          = data.get("upload",          True)
+    show_subtitles  = data.get("show_subtitles",  False)
 
     if not topic:
         return jsonify({"error": "Topic is required"}), 400
@@ -110,7 +112,7 @@ def api_start_video():
 
     thread = threading.Thread(
         target=run_pipeline_async,
-        args=(job_id, topic, niche, language, privacy, upload),
+        args=(job_id, topic, niche, language, privacy, upload, show_subtitles),
         daemon=True,
     )
     thread.start()

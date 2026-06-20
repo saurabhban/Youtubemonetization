@@ -35,40 +35,40 @@ def _escape_xml(text: str) -> str:
 
 def _text_to_ssml(text: str, rate: str = TTS_RATE_DEFAULT) -> str:
     """
-    Convert plain narration text to SSML with natural pauses.
+    Convert plain narration text to SSML with light, natural pauses.
 
-    Rules:
-      . ! ?   → 650ms break  (sentence end)
-      —  …    → 400ms break  (dramatic pause)
-      ,  ;    → 200ms break  (clause boundary)
-      :       → 300ms break  (list intro / explanation)
-      \\n\\n  → 800ms break  (paragraph)
+    Rules (kept minimal to avoid choppy audio):
+      . ! ?   → 300ms  (sentence end — just enough breath)
+      —  …    → 250ms  (dramatic beat)
+      ,  ;    → 100ms  (barely noticeable, natural flow)
+      :       → 150ms  (list intro)
+      newline → stripped (Edge TTS handles it fine)
+
+    Intentionally NO paragraph 800ms blasts — those made the voice
+    sound broken and robotic.
     """
     text = _escape_xml(text.strip())
 
-    # Paragraph breaks first (double newline)
-    text = re.sub(r'\n\s*\n', ' <break time="800ms"/> ', text)
-    # Single newline → short pause
-    text = re.sub(r'\n', ' <break time="400ms"/> ', text)
+    # Collapse all newlines to single space — let Edge TTS breathe naturally
+    text = re.sub(r'\n+', ' ', text)
 
-    # Sentence endings — but don't break on abbreviations (Mr. Dr. vs. etc.)
-    # Only break when followed by a space + capital letter or end of string
-    text = re.sub(r'([.!?])(\s+)(?=[A-Z"\'(])', r'\1<break time="650ms"/>\2', text)
-    text = re.sub(r'([.!?])\s*$', r'\1<break time="650ms"/>', text)
-
-    # Em dash / ellipsis — dramatic pause
-    text = re.sub(r'[—–]\s*', ' <break time="400ms"/> ', text)
-    text = re.sub(r'\.\.\.\s*', '<break time="400ms"/> ', text)
-
-    # Colons introducing lists or explanations
-    text = re.sub(r':\s+', ': <break time="300ms"/> ', text)
-
-    # Commas and semicolons (short breath)
-    text = re.sub(r'([,;])\s+', r'\1 <break time="200ms"/> ', text)
-
-    # Numbers with units — add space so they sound natural
+    # Numbers with units — space so they sound natural
     text = re.sub(r'(\d)(lakh|crore|thousand|million|billion)', r'\1 \2', text, flags=re.IGNORECASE)
     text = re.sub(r'₹(\d)', r'rupees \1', text)
+
+    # Sentence endings — only when followed by capital or end of text
+    text = re.sub(r'([.!?])(\s+)(?=[A-Z"\'(])', r'\1<break time="300ms"/>\2', text)
+    text = re.sub(r'([.!?])\s*$', r'\1<break time="300ms"/>', text)
+
+    # Em dash / ellipsis — light dramatic beat
+    text = re.sub(r'[—–]\s*', ' <break time="250ms"/> ', text)
+    text = re.sub(r'\.\.\.\s*', '<break time="250ms"/> ', text)
+
+    # Colons
+    text = re.sub(r':\s+', ': <break time="150ms"/> ', text)
+
+    # Commas — barely a breath, keeps flow natural
+    text = re.sub(r'([,;])\s+', r'\1 <break time="100ms"/> ', text)
 
     ssml = (
         f'<speak>'
