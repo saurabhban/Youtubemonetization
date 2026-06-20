@@ -373,14 +373,31 @@ def build_scene_clip(scene: dict, video_id: str, tmp_dir: str):
         shutil.copy2(overlay_out, caption_out)
 
     # Step 4: merge audio
+    merged_out = caption_out
     if audio_path and os.path.exists(audio_path) and os.path.exists(caption_out):
-        scene_out = os.path.join(tmp_dir, f"scene{sid:02d}_final.mp4")
-        ok = merge_video_audio(caption_out, audio_path, scene_out)
-        if ok and os.path.exists(scene_out):
-            return scene_out
+        scene_with_audio = os.path.join(tmp_dir, f"scene{sid:02d}_audio.mp4")
+        ok = merge_video_audio(caption_out, audio_path, scene_with_audio)
+        if ok and os.path.exists(scene_with_audio):
+            merged_out = scene_with_audio
 
-    # Fallback: return silent caption clip (will add silent audio at concat stage)
-    return caption_out if os.path.exists(caption_out) else None
+    # Step 5: avatar overlay (footage scenes only — animation scenes already have text)
+    if not used_animation and os.path.exists(merged_out):
+        try:
+            from avatar_engine import create_talking_avatar_video, overlay_avatar_on_video
+            dur_for_avatar = scene.get("actual_duration_sec", duration)
+            avatar_clip    = os.path.join(tmp_dir, f"scene{sid:02d}_avatar.mp4")
+            av_ok = create_talking_avatar_video(dur_for_avatar, avatar_clip)
+            if av_ok and os.path.exists(avatar_clip):
+                avatar_final = os.path.join(tmp_dir, f"scene{sid:02d}_final.mp4")
+                ov_ok = overlay_avatar_on_video(merged_out, avatar_clip, avatar_final)
+                if ov_ok and os.path.exists(avatar_final):
+                    return avatar_final
+        except Exception as av_err:
+            logger.warning(f"Scene {sid}: avatar overlay failed ({av_err}) — skipping avatar")
+
+    return merged_out if os.path.exists(merged_out) else (
+        caption_out if os.path.exists(caption_out) else None
+    )
 
 
 # ── Cards ─────────────────────────────────────────────────────────────────
