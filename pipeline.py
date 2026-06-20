@@ -123,7 +123,7 @@ class VideoGenerationPipeline:
             # ── Step 4: Assemble Video ───────────────────────────────
             progress("assembly", "Assembling final video with FFmpeg...", 70)
             from video_assembler import assemble_video
-            video_path = assemble_video(script, scenes, video_id, self.channel_name)
+            video_path = assemble_video(script, scenes, video_id, self.channel_name, niche=self.niche)
 
             if not video_path or not os.path.exists(video_path):
                 raise RuntimeError("Video assembly failed — check FFmpeg logs")

@@ -27,6 +27,20 @@ FONT_PATH = os.path.join(FONT_DIR, "NotoSans-Bold.ttf")
 os.makedirs(BGM_DIR, exist_ok=True)
 os.makedirs(FONT_DIR, exist_ok=True)
 
+# Auto-generate BGM tracks on first run if none exist
+def _ensure_bgm():
+    existing = [f for f in os.listdir(BGM_DIR) if f.endswith((".mp3", ".wav"))]
+    if not existing:
+        logger.info("No BGM tracks found — generating ambient tracks (one-time ~30s)...")
+        try:
+            from bgm_generator import generate_all
+            tracks = generate_all()
+            logger.info(f"BGM ready: {len(tracks)} track(s) generated")
+        except Exception as e:
+            logger.warning(f"BGM auto-generation failed (non-fatal): {e}")
+
+_ensure_bgm()
+
 # Auto-download NotoSans font if missing
 if not os.path.exists(FONT_PATH):
     try:
@@ -463,33 +477,74 @@ def concatenate_clips(clip_paths: list, output_path: str, tmp_dir: str) -> bool:
     return ok
 
 
-def add_background_music(input_path: str, output_path: str, bgm_volume: float = 0.08) -> bool:
-    bgm_files = [f for f in os.listdir(BGM_DIR) if f.endswith(".mp3")] if os.path.exists(BGM_DIR) else []
+def add_background_music(
+    input_path: str,
+    output_path: str,
+    bgm_volume: float = 0.08,
+    niche: str = "",
+) -> bool:
+    """
+    Mix background music under the narration track.
+    - Auto-loops BGM if shorter than the video
+    - Fades out BGM in the last 5 seconds
+    - Picks niche-appropriate track when available, else random
+    - Accepts .mp3 and .wav files in assets/bgm/
+    """
+    bgm_files = (
+        [f for f in os.listdir(BGM_DIR) if f.endswith((".mp3", ".wav"))]
+        if os.path.exists(BGM_DIR) else []
+    )
     if not bgm_files:
-        logger.info("No BGM files — skipping background music")
+        logger.info("No BGM files found — skipping background music")
         shutil.copy2(input_path, output_path)
         return True
-    import random
-    bgm_path = os.path.join(BGM_DIR, random.choice(bgm_files))
+
+    # Niche-to-track preference
+    niche_track_map = {
+        "AI & Technology India": "ambient_tech",
+        "Personal Finance India": "lofi_calm",
+        "Health & Wellness India": "lofi_calm",
+        "Government Jobs India": "cinematic_rise",
+    }
+    preferred_stem = niche_track_map.get(niche, "")
+    preferred = [f for f in bgm_files if preferred_stem and preferred_stem in f]
+    chosen = preferred[0] if preferred else random.choice(bgm_files)
+    bgm_path = os.path.join(BGM_DIR, chosen)
+
     duration = get_video_duration(input_path)
+    fade_start = max(0.0, duration - 5.0)
+    logger.info(f"Mixing BGM: {chosen} | vol={bgm_volume} | fade out at {fade_start:.1f}s")
+
     cmd = [
         "ffmpeg", "-y",
         "-i", input_path,
-        "-stream_loop", "-1", "-i", bgm_path,
+        "-stream_loop", "-1", "-i", bgm_path,   # auto-loop BGM
         "-t", str(duration),
         "-filter_complex",
-        f"[1:a]volume={bgm_volume},afade=t=out:st={max(0,duration-5)}:d=5[bgm];"
-        f"[0:a][bgm]amix=inputs=2:duration=first[aout]",
-        "-map", "0:v", "-map", "[aout]",
-        "-c:v", "copy", "-c:a", "aac",
+        (
+            f"[1:a]volume={bgm_volume},"
+            f"afade=t=in:st=0:d=2,"             # BGM fade-in (2s)
+            f"afade=t=out:st={fade_start}:d=5"  # BGM fade-out (5s)
+            f"[bgm];"
+            f"[0:a][bgm]amix=inputs=2:duration=first:dropout_transition=2[aout]"
+        ),
+        "-map", "0:v",
+        "-map", "[aout]",
+        "-c:v", "copy",
+        "-c:a", "aac", "-ar", "44100", "-ac", "2", "-b:a", "192k",
         output_path,
     ]
-    return run_ffmpeg(cmd, "add_bgm")
+    ok = run_ffmpeg(cmd, "add_bgm")
+    if not ok:
+        logger.warning("BGM mix failed — using video without background music")
+        shutil.copy2(input_path, output_path)
+        return True   # non-fatal
+    return True
 
 
 # ── Main assembly ─────────────────────────────────────────────────────────
 
-def assemble_video(script: dict, scenes: list, video_id: str, channel_name: str):
+def assemble_video(script: dict, scenes: list, video_id: str, channel_name: str, niche: str = ""):
     """Full pipeline: title + scenes + outro → concat → bgm → final MP4."""
     tmp_dir = os.path.join(VIDEOS_DIR, f"tmp_{video_id}")
     os.makedirs(tmp_dir, exist_ok=True)
@@ -533,7 +588,7 @@ def assemble_video(script: dict, scenes: list, video_id: str, channel_name: str)
     # BGM
     logger.info("Adding background music...")
     bgm_path = os.path.join(tmp_dir, "with_bgm.mp4")
-    add_background_music(concat_path, bgm_path)
+    add_background_music(concat_path, bgm_path, niche=niche)
 
     # Final export
     final_path = os.path.join(VIDEOS_DIR, f"{video_id}_final.mp4")
