@@ -1,6 +1,6 @@
 """
-Script Generator — uses Claude (Haiku) to write full video scripts.
-Returns structured JSON: title, description, tags, scenes, thumbnail info.
+Script Generator — uses Claude Haiku to write storytelling-grade video scripts.
+Returns structured JSON: title, description, tags, scenes with visual_type hints.
 """
 import json
 import logging
@@ -13,71 +13,108 @@ logger = logging.getLogger(__name__)
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 _claude = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
-SYSTEM_PROMPT = """You are an expert Indian YouTube script writer and SEO specialist.
-You write engaging, faceless educational video scripts for Indian audiences.
-You also produce SEO-optimized YouTube metadata: titles, descriptions with timestamps,
-and 30-50 high-traffic tags that help videos rank and get discovered.
+SYSTEM_PROMPT = """You are a world-class YouTube script writer who specializes in viral Indian educational content.
+You combine the storytelling of Kunal Shah with the data-driven clarity of Ali Abdaal.
+Your scripts make complex topics feel like a conversation between two smart friends at a chai shop.
 
-Always return valid JSON only — no markdown fences, no extra text."""
+Rules you NEVER break:
+1. HOOK in first 30 seconds — start with a shocking fact, a relatable pain, or a provocative question
+2. Every sentence is SHORT (10-15 words max), complete, and self-contained
+3. Use simple conversational English — "you", "we", "let me tell you", "here's the thing"
+4. Ground every claim in a specific Indian example: salary in LPA, cost in ₹, city names, company names
+5. Build CURIOSITY across scenes — each scene ends leaving the viewer wanting more
+6. Never use jargon without immediately explaining it in plain words
+7. SSML-friendly: no lists with asterisks or dashes inside narration — write full sentences only
+
+Return ONLY valid JSON — no markdown, no extra text."""
 
 
 def generate_script(topic: str, niche: str, channel_name: str,
-                    language: str = "English", duration_min: int = 8) -> dict:
-    """Generate a complete video script + SEO metadata for the given topic."""
-
-    # Build prompt using concatenation to avoid f-string brace issues with JSON examples
+                    language: str = "English", duration_min: int = 12) -> dict:
+    """
+    Generate a full video script optimised for engagement, clear narration,
+    and animated visual elements (charts, bullets, tables).
+    """
     prompt = (
-        'Write a complete YouTube video script for this topic: "' + topic + '"\n\n'
+        'Write a complete, high-quality YouTube video script for: "' + topic + '"\n\n'
         "Channel: " + channel_name + "\n"
         "Niche: " + niche + "\n"
-        "Target Language: " + language + "\n"
-        "Target Duration: ~" + str(duration_min) + " minutes\n\n"
-        "Return a JSON object with this EXACT structure:\n"
+        "Language: " + language + "\n"
+        "Target Duration: " + str(duration_min) + " minutes (~" + str(duration_min * 130) + " words of narration)\n\n"
+        "Return a JSON object with EXACTLY this structure:\n"
         "{\n"
-        '  "title": "SEO-optimized video title (60 chars max, include year 2026 if relevant)",\n'
-        '  "description": "Full YouTube description (see DESCRIPTION RULES below)",\n'
-        '  "tags": ["array", "of", "30-50", "SEO", "tags"],\n'
-        '  "thumbnail_text": "3-4 word punch text for thumbnail",\n'
-        '  "thumbnail_subtitle": "5-6 word subtitle for thumbnail",\n'
-        '  "hook": "Opening 30-second hook script to grab attention",\n'
+        '  "title": "Curiosity-gap title, 60 chars max, includes year 2026 or rupee amount",\n'
+        '  "description": "Full YouTube description — see DESCRIPTION RULES below",\n'
+        '  "tags": ["30 to 50 SEO tags — see TAG RULES below"],\n'
+        '  "thumbnail_text": "3-4 word SHOCKING stat or claim for thumbnail",\n'
+        '  "thumbnail_subtitle": "5-6 word context line for thumbnail",\n'
+        '  "hook": "First 45 seconds — start with a shocking fact or relatable problem. No filler. Pure hook.",\n'
         '  "scenes": [\n'
         '    {\n'
         '      "id": 1,\n'
-        '      "duration_sec": 45,\n'
-        '      "narration": "Full narration text for this scene",\n'
-        '      "visual_description": "What to show on screen for stock footage",\n'
+        '      "title": "Short scene title for internal use",\n'
+        '      "duration_sec": 60,\n'
+        '      "visual_type": "footage",\n'
+        '      "narration": "Full narration — SHORT sentences only. 10-15 words each. Conversational tone.",\n'
+        '      "visual_description": "Stock footage search keywords (people working, cloud servers, India city etc)",\n'
         '      "search_keywords": ["keyword1", "keyword2"],\n'
-        '      "on_screen_text": "Key text bullet to display on screen",\n'
+        '      "on_screen_text": "Short punchy key point shown on screen. Max 60 chars.",\n'
+        '      "animation_data": null,\n'
         '      "transition": "cut"\n'
         '    }\n'
         '  ],\n'
-        '  "outro_script": "30-second outro with subscribe CTA",\n'
-        '  "total_scenes": 8,\n'
-        '  "estimated_duration_sec": 480\n'
+        '  "outro_script": "45-second outro — give final takeaway, then subscribe/like CTA",\n'
+        '  "total_scenes": 12,\n'
+        '  "estimated_duration_sec": 720\n'
         "}\n\n"
-        "SCRIPT RULES:\n"
-        "- Include 8-10 scenes, each 40-90 seconds of narration\n"
-        "- Use Indian examples: INR amounts, Indian banks, SEBI, RBI, Indian cities\n"
-        "- Visual descriptions must be searchable stock footage keywords\n"
-        "- Include 2-3 mid-video engagement prompts (like/comment hooks)\n\n"
-        "DESCRIPTION RULES (very important for SEO):\n"
-        "- Start with 2-3 keyword-rich sentences about the video\n"
-        "- Add timestamps section like: 00:00 Intro\\n01:30 Topic 1\\netc.\n"
-        "- Add a Resources/Links section (can be placeholder)\n"
-        "- End with Subscribe CTA and channel description\n"
-        "- Include 5-8 hashtags at the very end\n"
-        "- Total description: 800-1000 characters\n\n"
-        "TAG RULES (crucial for discovery):\n"
-        "- Generate 30-50 tags total\n"
-        "- Mix: broad tags (cloud computing), specific tags (aws certification india 2026), long-tail tags\n"
-        "- Include Hindi transliteration where relevant (e.g. 'cloud computing kya hai')\n"
-        "- Include competitor/trending topic tags\n"
-        "- Include channel-specific tags (cloudsignalhq, cloud signal)\n"
-        "- Use lowercase for all tags\n"
-        "- Include year tags (2026)\n"
+
+        "SCENE RULES (critical):\n"
+        "- Generate 12-15 scenes for a " + str(duration_min) + "-minute video\n"
+        "- Scene 1: Hook (45-60s) — shocking opening\n"
+        "- Scene 2: Promise (30s) — tell them exactly what they will learn\n"
+        "- Scenes 3-11: Core content — each scene = one complete idea, fully explained\n"
+        "- Scene 12: Summary + CTA (45s)\n"
+        "- Each narration must be 100-180 words of CONVERSATIONAL speech\n"
+        "- End each scene with either a cliffhanger OR a strong takeaway\n\n"
+
+        "VISUAL TYPE — set visual_type per scene to one of these values:\n"
+        '- "footage"            → Use stock footage as background (narrative scenes)\n'
+        '- "bullet_list"        → Animated bullet points appearing one by one\n'
+        '- "bar_chart"          → Animated growing bar chart\n'
+        '- "stat_card"          → Giant stat with animated counter\n'
+        '- "comparison_table"   → Side-by-side comparison (A vs B)\n\n'
+
+        "ANIMATION DATA — when visual_type is NOT footage, fill animation_data like these examples:\n\n"
+        'For bullet_list: {"title": "Top 3 Cloud Certifications", "items": ["AWS Solutions Architect — ₹18 LPA avg", "Google Cloud Professional — ₹22 LPA avg", "Azure Administrator — ₹15 LPA avg"]}\n\n'
+        'For bar_chart: {"title": "Average Salary by Cloud Skill (LPA)", "labels": ["AWS", "Azure", "GCP", "DevOps"], "values": [18, 15, 22, 20], "unit": "LPA"}\n\n'
+        'For stat_card: {"stats": [{"label": "Cloud Engineers Hired in India 2025", "value": "2,40,000", "context": "Source: NASSCOM 2025"}]}\n\n'
+        'For comparison_table: {"title": "AWS vs Azure vs GCP", "headers": ["Feature", "AWS", "Azure", "GCP"], "rows": [["Free Tier", "12 months", "12 months", "Always free"], ["India Regions", "3", "2", "1"], ["Best For", "Startups", "Enterprise", "AI/ML"]]}\n\n'
+
+        "NARRATION STYLE GUIDE:\n"
+        "BAD: 'Cloud computing is a paradigm that enables on-demand access to computing resources.'\n"
+        "GOOD: 'Imagine paying for electricity only when you use it. Cloud computing works exactly like that.'\n\n"
+        "BAD: 'There are several certifications that can help you get a job.'\n"
+        "GOOD: 'There is one certification that added ₹6 lakh to my friend Rahul's salary. In just 3 months.'\n\n"
+        "BAD: 'In this video, we will discuss the various aspects of...'\n"
+        "GOOD: 'By the end of this video, you will know exactly which cloud to learn — and why.'\n\n"
+
+        "DESCRIPTION RULES:\n"
+        "- Line 1-3: Keyword-rich intro about the video topic\n"
+        "- Timestamps section (use realistic chapter markers)\n"
+        "- Resources section (mention free courses, official docs)\n"
+        "- Subscribe CTA\n"
+        "- 6-8 hashtags\n"
+        "- 800-1000 chars total\n\n"
+
+        "TAG RULES:\n"
+        "- 35-50 tags\n"
+        "- Mix: broad (cloud computing), specific (aws certification india 2026), Hindi (cloud computing kya hai)\n"
+        "- Always include: cloudsignalhq, cloud signal india\n"
+        "- Include salary/career tags: tech jobs india, lpa salary, it jobs 2026\n"
+        "- All lowercase\n"
     )
 
-    logger.info(f"Generating script for: '{topic}'")
+    logger.info(f"Generating {duration_min}-min script for: '{topic}'")
 
     msg = _claude.messages.create(
         model="claude-haiku-4-5-20251001",
@@ -87,7 +124,6 @@ def generate_script(topic: str, niche: str, channel_name: str,
     )
 
     raw = msg.content[0].text.strip()
-    # Strip markdown fences if Claude wraps in them
     if raw.startswith("```"):
         raw = raw.lstrip("```json").lstrip("```").rstrip("```").strip()
 
@@ -95,10 +131,12 @@ def generate_script(topic: str, niche: str, channel_name: str,
     script["topic"] = topic
     script["niche"]  = niche
 
+    scene_types = [s.get("visual_type", "footage") for s in script.get("scenes", [])]
     logger.info(
-        f"Script ready: '{script.get('title')}' | "
+        f"Script: '{script.get('title')}' | "
         f"{len(script.get('scenes', []))} scenes | "
-        f"{len(script.get('tags', []))} tags"
+        f"{len(script.get('tags', []))} tags | "
+        f"visual_types={scene_types}"
     )
     return script
 
@@ -112,12 +150,13 @@ def generate_topic_ideas(niche: str, count: int = 10) -> list:
         "Generate " + str(count) + " unique, high-CPM YouTube video topic ideas for an Indian audience.\n"
         "Niche: " + niche + "\n"
         "Description: " + niche_info.get("description", niche) + "\n"
-        "Avoid repeating these existing topics: " + str(existing) + "\n\n"
+        "Avoid repeating: " + str(existing) + "\n\n"
         "Rules:\n"
-        "- Titles must be SEO-rich and curiosity-driven\n"
-        "- Use numbers, years (2026), rupee amounts where relevant\n"
-        "- Target Indian audience specifically\n"
-        "- Vary format: How to, X Ways, Why, Truth About, Complete Guide, etc.\n\n"
+        "- Use curiosity gaps, shocking stats, or controversial angles\n"
+        "- Include specific numbers, rupee amounts, years (2026)\n"
+        "- Target Indian audience — Indian companies, Indian salaries, Indian problems\n"
+        "- Vary format: 'How I', 'Why Most Indians', 'The Truth About', 'X Things', etc.\n"
+        "- Each title should make someone stop scrolling\n\n"
         'Return JSON only: {"topics": ["topic1", "topic2", ...]}'
     )
 
@@ -132,8 +171,7 @@ def generate_topic_ideas(niche: str, count: int = 10) -> list:
     if raw.startswith("```"):
         raw = raw.lstrip("```json").lstrip("```").rstrip("```").strip()
 
-    data = json.loads(raw)
-    return data.get("topics", [])
+    return json.loads(raw).get("topics", [])
 
 
 if __name__ == "__main__":

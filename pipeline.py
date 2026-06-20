@@ -60,7 +60,7 @@ class VideoGenerationPipeline:
         privacy: str = "private",
         upload: bool = True,
         publish_at: str = None,
-        duration_min: int = 8,
+        duration_min: int = 12,
         on_progress=None,
     ) -> dict:
         """

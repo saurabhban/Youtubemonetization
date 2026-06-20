@@ -5,6 +5,7 @@ Pipeline: footage clips → trim/scale → add narration audio → add captions 
 Text overlays use Pillow (PIL) instead of FFmpeg drawtext (no libfreetype needed).
 """
 import os
+import re
 import subprocess
 import logging
 import json
@@ -310,39 +311,62 @@ def merge_video_audio(video_path: str, audio_path: str, output_path: str) -> boo
 
 
 def build_scene_clip(scene: dict, video_id: str, tmp_dir: str):
-    """Build one scene: footage → overlay → caption → merge audio. Robust fallbacks at each step."""
-    sid       = scene["id"]
+    """Build one scene: footage/animation → overlay → caption → merge audio."""
+    sid        = scene["id"]
     audio_path = scene.get("audio_path")
-    footage   = scene.get("footage_paths", [])
-    duration  = scene.get("actual_duration_sec", scene.get("duration_sec", 45))
-    narration = scene.get("narration", "")
-    on_screen = scene.get("on_screen_text", "")
+    footage    = scene.get("footage_paths", [])
+    duration   = scene.get("actual_duration_sec", scene.get("duration_sec", 45))
+    narration  = scene.get("narration", "")
+    on_screen  = scene.get("on_screen_text", "")
+    visual_type = scene.get("visual_type", "footage")
 
-    logger.info(f"Building scene {sid}: {duration:.1f}s | footage={len(footage)}")
+    logger.info(f"Building scene {sid}: {duration:.1f}s | type={visual_type} | footage={len(footage)}")
 
-    # Step 1: footage
+    # Step 1: base clip — animation or footage
     footage_out = os.path.join(tmp_dir, f"scene{sid:02d}_footage.mp4")
-    if footage:
-        ok = prepare_footage_clip(footage[0], footage_out, duration)
-        if not ok:
-            create_color_background(footage_out, duration)
-    else:
-        create_color_background(footage_out, duration)
 
-    # Step 2: text overlay (fallback = copy)
+    # Try animation engine first for non-footage scenes
+    used_animation = False
+    if visual_type and visual_type != "footage":
+        try:
+            from animation_engine import render_for_scene
+            anim_path = os.path.join(tmp_dir, f"scene{sid:02d}_anim.mp4")
+            ok = render_for_scene(scene, duration, anim_path)
+            if ok and os.path.exists(anim_path):
+                shutil.copy2(anim_path, footage_out)
+                used_animation = True
+                logger.info(f"  Scene {sid}: used animation ({visual_type})")
+        except Exception as ae:
+            logger.warning(f"  Scene {sid}: animation failed ({ae}), falling back to footage")
+
+    if not used_animation:
+        if footage:
+            ok = prepare_footage_clip(footage[0], footage_out, duration)
+            if not ok:
+                create_color_background(footage_out, duration)
+        else:
+            create_color_background(footage_out, duration)
+
+    # Step 2: text overlay — skip for animation scenes (they have built-in text)
     overlay_out = os.path.join(tmp_dir, f"scene{sid:02d}_overlay.mp4")
-    if on_screen and os.path.exists(footage_out):
+    if used_animation:
+        shutil.copy2(footage_out, overlay_out)
+    elif on_screen and os.path.exists(footage_out):
         ok = add_text_overlay(footage_out, overlay_out, text=on_screen)
         if not ok or not os.path.exists(overlay_out):
             shutil.copy2(footage_out, overlay_out)
     elif os.path.exists(footage_out):
         shutil.copy2(footage_out, overlay_out)
 
-    # Step 3: caption bar (fallback = copy)
-    caption_out = os.path.join(tmp_dir, f"scene{sid:02d}_caption.mp4")
-    if narration and len(narration) > 10 and os.path.exists(overlay_out):
-        caption_text = narration[:100] + ("..." if len(narration) > 100 else "")
-        ok = add_caption_bar(overlay_out, caption_out, caption_text, duration)
+    # Step 3: caption bar — use on_screen_text (short AI key-point), NOT narration
+    caption_out  = os.path.join(tmp_dir, f"scene{sid:02d}_caption.mp4")
+    on_screen    = scene.get("on_screen_text", "").strip()
+    # Fallback: extract first clean sentence from narration (max 80 chars)
+    if not on_screen and narration:
+        first_sent = re.split(r'[.!?]', narration)[0].strip()
+        on_screen  = first_sent[:80]
+    if on_screen and os.path.exists(overlay_out):
+        ok = add_caption_bar(overlay_out, caption_out, on_screen, duration)
         if not ok or not os.path.exists(caption_out):
             shutil.copy2(overlay_out, caption_out)
     elif os.path.exists(overlay_out):

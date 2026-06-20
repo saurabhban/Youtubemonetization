@@ -22,7 +22,7 @@ CHANNEL_LANGUAGE    = os.getenv("CHANNEL_LANGUAGE", "English")  # English | Hind
 VIDEO_WIDTH         = 1920
 VIDEO_HEIGHT        = 1080
 VIDEO_FPS           = 30
-TARGET_DURATION_SEC = 480   # 8 min — sweet spot for YouTube monetization
+TARGET_DURATION_SEC = 720   # 12 min — longer = more ad breaks = higher revenue
 INTRO_DURATION_SEC  = 5
 OUTRO_DURATION_SEC  = 8
 
@@ -35,7 +35,7 @@ TTS_VOICES = {
     "Hindi_M":  "hi-IN-MadhurNeural",       # Hindi male
     "Hinglish": "en-IN-NeerjaNeural",
 }
-TTS_RATE    = "+10%"     # speaking speed
+TTS_RATE    = "-5%"      # slightly slower = clearer, more professional delivery
 TTS_VOLUME  = "+0%"
 
 # ─── AI SETTINGS ────────────────────────────────────────────────
