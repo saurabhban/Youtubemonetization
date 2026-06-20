@@ -5,13 +5,11 @@ flask>=3.0.0
 python-dotenv>=1.0.0
 
 # AI / Script Generation
-openai>=1.30.0
+anthropic>=0.25.0
 
-# Text-to-Speech (free, Microsoft Neural voices)
+# Text-to-Speech — ElevenLabs (primary, human-quality) + Edge TTS (fallback, free)
+elevenlabs>=1.2.0
 edge-tts>=6.1.9
-
-# Audio Processing
-pydub>=0.25.1
 
 # Stock Footage Download
 requests>=2.31.0
@@ -21,8 +19,11 @@ google-api-python-client>=2.130.0
 google-auth-oauthlib>=1.2.0
 google-auth-httplib2>=0.2.0
 
-# Image Processing (for thumbnails)
+# Image Processing (for thumbnails + overlays)
 Pillow>=10.3.0
+
+# Animated visuals
+matplotlib>=3.8.0
 
 # Utilities
 tqdm>=4.66.0

@@ -23,7 +23,8 @@ JOBS: dict[str, dict] = {}
 
 
 def run_pipeline_async(job_id: str, topic: str, niche: str, language: str,
-                       privacy: str, upload: bool, show_subtitles: bool = False):
+                       privacy: str, upload: bool, show_subtitles: bool = False,
+                       voice_id: str = None):
     """Run pipeline in background thread, update JOBS dict."""
     from pipeline import VideoGenerationPipeline
     JOBS[job_id]["status"] = "running"
@@ -42,6 +43,7 @@ def run_pipeline_async(job_id: str, topic: str, niche: str, language: str,
         upload=upload,
         on_progress=on_progress,
         show_subtitles=show_subtitles,
+        voice_id=voice_id,
     )
     JOBS[job_id]["result"]  = result
     JOBS[job_id]["status"]  = "done" if result["success"] else "error"
@@ -91,6 +93,7 @@ def api_start_video():
     privacy         = data.get("privacy",         "private")
     upload          = data.get("upload",          True)
     show_subtitles  = data.get("show_subtitles",  False)
+    voice_id        = data.get("voice_id",        None)
 
     if not topic:
         return jsonify({"error": "Topic is required"}), 400
@@ -112,7 +115,7 @@ def api_start_video():
 
     thread = threading.Thread(
         target=run_pipeline_async,
-        args=(job_id, topic, niche, language, privacy, upload, show_subtitles),
+        args=(job_id, topic, niche, language, privacy, upload, show_subtitles, voice_id),
         daemon=True,
     )
     thread.start()
@@ -211,6 +214,30 @@ def api_youtube_auth():
 
     threading.Thread(target=_run_auth, daemon=True).start()
     return jsonify({"started": True, "message": "Browser should open for Google login. Complete it, then the status will update automatically."})
+
+
+@app.route("/api/elevenlabs-voices")
+def api_elevenlabs_voices():
+    """Return available ElevenLabs voices (or fallback Edge TTS voices)."""
+    try:
+        from tts_engine import list_available_voices
+        voices = list_available_voices()
+        provider = "elevenlabs" if os.getenv("ELEVENLABS_API_KEY") else "edge_tts"
+        return jsonify({"provider": provider, "voices": voices})
+    except Exception as e:
+        return jsonify({"error": str(e), "voices": []}), 500
+
+
+@app.route("/api/elevenlabs-status")
+def api_elevenlabs_status():
+    """Check whether ElevenLabs is configured."""
+    key = os.getenv("ELEVENLABS_API_KEY", "")
+    voice_id = os.getenv("ELEVENLABS_VOICE_ID", "21m00Tcm4TlvDq8ikWAM")
+    return jsonify({
+        "configured": bool(key),
+        "voice_id": voice_id,
+        "key_preview": f"{key[:8]}..." if key else None,
+    })
 
 
 @app.route("/output/videos/<path:filename>")

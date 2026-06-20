@@ -14,7 +14,7 @@ import logging
 import os
 import re
 import anthropic
-from config import NICHES, CHANNEL_LANGUAGE
+from config import NICHES, CHANNEL_LANGUAGE, STORY_NICHES
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +36,102 @@ NON-NEGOTIABLE RULES:
 6. Each narration: minimum 130 words, maximum 180 words.
 7. Build a continuous thread — each scene connects logically to the next.
 8. Return ONLY valid JSON. No markdown. No extra text."""
+
+
+# ── Story system prompt ──────────────────────────────────────────────────────
+STORY_SYSTEM_PROMPT = """You are a world-class storyteller for a faceless YouTube channel.
+You write immersive, cinematic narration in PURE ENGLISH — no Hindi, no Hinglish.
+Your stories grip the listener from the first sentence and don't let go.
+
+Think: the pacing of Ryan Trahan + the tension of Karan Johar's true stories + Indian cultural depth.
+
+STORYTELLING RULES:
+1. Write in FIRST PERSON or THIRD PERSON — pick one and stay consistent.
+2. Every sentence moves the story forward. No filler. No "so as I was saying".
+3. Use SENSORY DETAILS: sounds, smells, the way light fell, what they felt.
+4. Build TENSION gradually — don't reveal everything at once.
+5. Each scene must end on a micro-hook: a question, a revelation, or a dread.
+6. 130-180 words per scene narration. Short, punchy sentences for tension moments.
+7. scene_headline: 3-5 atmospheric words. Example: "The Door Creaked Open" NOT "Scene 3".
+8. on_screen_text: 4-7 words — a chilling quote, a date, a location, or a fact.
+9. ZERO Hindi/Hinglish words anywhere.
+10. Return ONLY valid JSON. No markdown. No extra text."""
+
+
+def _build_story_prompt(topic: str, niche: str, channel_name: str, duration_min: int) -> str:
+    """Build a narrative story script prompt — different structure than educational."""
+    target_words = duration_min * 130
+
+    # Tone per niche
+    tone_map = {
+        "Horror Stories India":       "terrifying, atmospheric, paranormal — make skin crawl",
+        "Motivational Stories India":  "emotional, inspiring, triumphant — make eyes water",
+        "True Crime India":           "investigative, dark, matter-of-fact — chilling and real",
+        "Indian Mythology & History":  "epic, reverent, dramatic — timeless and grand",
+    }
+    tone = tone_map.get(niche, "engaging and dramatic")
+
+    return (
+        f'Write a complete faceless YouTube STORY SCRIPT about: "{topic}"\n\n'
+        f"Channel: {channel_name} | Niche: {niche}\n"
+        f"Tone: {tone}\n"
+        f"Language: English ONLY (zero Hindi/Hinglish)\n"
+        f"Duration: {duration_min} minutes | Target: {target_words}+ words total\n\n"
+
+        "Return JSON with this EXACT structure:\n"
+        "{\n"
+        '  "title": "Gripping title, 60 chars max",\n'
+        '  "description": "YouTube description with timestamps, 800-1000 chars",\n'
+        '  "tags": ["35-50 lowercase SEO tags"],\n'
+        '  "thumbnail_text": "3-4 WORD shocking hook",\n'
+        '  "thumbnail_subtitle": "5-6 word teaser",\n'
+        '  "scenes": [\n'
+        '    {\n'
+        '      "id": 1,\n'
+        '      "scene_headline": "3-5 atmospheric words",\n'
+        '      "duration_sec": 65,\n'
+        '      "visual_type": "footage",\n'
+        '      "narration": "130-180 words of pure story narration. Immersive. Sensory. Gripping.",\n'
+        '      "visual_description": "Atmospheric footage keywords for this scene",\n'
+        '      "search_keywords": ["dark forest night india", "old haveli", ...],\n'
+        '      "on_screen_text": "Chilling quote or location or date",\n'
+        '      "animation_data": null,\n'
+        '      "transition": "fade"\n'
+        '    }\n'
+        '  ],\n'
+        '  "outro_script": "30-second outro — tease next story + subscribe CTA",\n'
+        '  "total_scenes": 12,\n'
+        f' "estimated_duration_sec": {duration_min * 60}\n'
+        "}\n\n"
+
+        "STORY STRUCTURE (follow exactly):\n"
+        "  Scene 1  — HOOK (45s): Drop the listener INTO the story. No intro. No 'today we will'. Start mid-action.\n"
+        "  Scene 2  — SETUP (55s): Who, where, when. Make the listener care about the person.\n"
+        "  Scene 3  — FIRST SIGN (60s): Something is wrong. The first crack in normal reality.\n"
+        "  Scenes 4-6 — BUILDUP (65s each): Tension escalates. Each scene darker/more intense than last.\n"
+        "  Scene 7  — MIDPOINT SHOCK (70s): A major revelation that reframes everything before it.\n"
+        "  Scenes 8-9 — DESCENT (65s each): Things get worse. The protagonist is trapped / cornered.\n"
+        "  Scene 10 — CLIMAX (70s): The most intense moment. Peak tension. Barely breathe.\n"
+        "  Scene 11 — RESOLUTION (60s): What happened after. The truth revealed.\n"
+        "  Scene 12 — AFTERMATH (50s): Lasting impact. Lesson or lingering question. Haunts the listener.\n\n"
+
+        "VISUAL SEARCH KEYWORDS — match the mood:\n"
+        "  Horror: dark forest, abandoned building, shadows, candle flame, empty corridor\n"
+        "  Motivational: person running sunrise, family hug, celebration, study desk, cityscape\n"
+        "  True Crime: police car lights, courtroom, evidence tape, newspaper, dark alley\n"
+        "  Mythology: temple at dawn, fire ritual, ancient architecture, epic sky, warrior\n\n"
+
+        "NARRATION QUALITY:\n"
+        "  BAD:  'In this story we will explore what happened to Riya that night in October...'\n"
+        "  GOOD: 'The clock read 11:47 PM when Riya heard the first knock. Three slow taps. Then silence.'\n\n"
+        "  BAD:  'She was very scared and did not know what to do in the situation.'\n"
+        "  GOOD: 'Her hands wouldn't stop shaking. She pressed herself against the wall and held her breath.'\n\n"
+
+        "MICRO-HOOKS — end every scene with one:\n"
+        "  'What she found behind that door changed everything.'\n"
+        "  'That was the last time anyone saw him alive.'\n"
+        "  'She had no idea the worst was still to come.'\n"
+    )
 
 
 # ── Prompt builder ────────────────────────────────────────────────────────────
@@ -182,10 +278,14 @@ def generate_script(topic: str, niche: str, channel_name: str,
                     language: str = "English", duration_min: int = 12,
                     max_retries: int = 2) -> dict:
     """
-    Generate a validated video script. Retries up to max_retries times
-    if the script fails word-count or scene-count validation.
+    Generate a validated video script. Routes story niches to narrative prompts.
+    Retries up to max_retries times if validation fails.
     """
-    prompt = _build_script_prompt(topic, niche, channel_name, duration_min)
+    is_story = niche in STORY_NICHES
+    system   = STORY_SYSTEM_PROMPT if is_story else SYSTEM_PROMPT
+    prompt   = (_build_story_prompt(topic, niche, channel_name, duration_min)
+                if is_story else
+                _build_script_prompt(topic, niche, channel_name, duration_min))
 
     for attempt in range(max_retries + 1):
         if attempt > 0:
@@ -196,7 +296,7 @@ def generate_script(topic: str, niche: str, channel_name: str,
         msg = _claude.messages.create(
             model="claude-haiku-4-5-20251001",
             max_tokens=8192,
-            system=SYSTEM_PROMPT,
+            system=system,
             messages=[{"role": "user", "content": prompt}],
         )
 
@@ -212,8 +312,12 @@ def generate_script(topic: str, niche: str, channel_name: str,
                 raise
             continue
 
-        script["topic"] = topic
-        script["niche"]  = niche
+        script["topic"]      = topic
+        script["niche"]      = niche
+        script["story_mode"] = is_story
+        # Store niche TTS rate so pipeline can use it
+        niche_cfg = NICHES.get(niche, {})
+        script["tts_rate"] = niche_cfg.get("tts_rate", "-5%")
 
         ok, reason = _validate_script(script)
         if ok:

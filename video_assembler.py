@@ -321,14 +321,41 @@ def _image_to_video(png_path: str, duration_sec: float, output_path: str,
 
 # ── Scene building ────────────────────────────────────────────────────────
 
-def prepare_footage_clip(input_path: str, output_path: str, duration_sec: float) -> bool:
+def prepare_footage_clip(input_path: str, output_path: str, duration_sec: float,
+                         ken_burns: bool = False) -> bool:
+    """
+    Prepare a footage clip. ken_burns=True adds slow zoom-in for cinematic feel
+    (used on story/narrative niches).
+    """
+    import random
+    if ken_burns:
+        # Slow zoom from 100% to 108% over clip duration — subtle, cinematic
+        # zoompan needs fps in the filter to know frame count
+        n_frames = int(duration_sec * VIDEO_FPS)
+        zoom_dir = random.choice(["in", "out"])
+        if zoom_dir == "in":
+            zoom_expr = f"min(zoom+0.0008,1.08)"
+            x_expr = "iw/2-(iw/zoom/2)"
+            y_expr = "ih/2-(ih/zoom/2)"
+        else:
+            zoom_expr = f"if(eq(on,1),1.08,max(zoom-0.0008,1.0))"
+            x_expr = "iw/2-(iw/zoom/2)"
+            y_expr = "ih/2-(ih/zoom/2)"
+        vf = (
+            f"scale={VIDEO_WIDTH*2}:{VIDEO_HEIGHT*2}:force_original_aspect_ratio=increase,"
+            f"crop={VIDEO_WIDTH*2}:{VIDEO_HEIGHT*2},"
+            f"zoompan=z='{zoom_expr}':x='{x_expr}':y='{y_expr}'"
+            f":d={n_frames}:s={VIDEO_WIDTH}x{VIDEO_HEIGHT}:fps={VIDEO_FPS}"
+        )
+    else:
+        vf = (
+            f"scale={VIDEO_WIDTH}:{VIDEO_HEIGHT}:force_original_aspect_ratio=increase,"
+            f"crop={VIDEO_WIDTH}:{VIDEO_HEIGHT},fps={VIDEO_FPS}"
+        )
     cmd = [
         "ffmpeg", "-y", "-i", input_path,
         "-t", str(duration_sec),
-        "-vf", (
-            f"scale={VIDEO_WIDTH}:{VIDEO_HEIGHT}:force_original_aspect_ratio=increase,"
-            f"crop={VIDEO_WIDTH}:{VIDEO_HEIGHT},fps={VIDEO_FPS}"
-        ),
+        "-vf", vf,
         "-an", "-c:v", "libx264", "-preset", "fast", "-crf", "23",
         output_path,
     ]
@@ -396,7 +423,8 @@ def merge_video_audio(video_path: str, audio_path: str, output_path: str) -> boo
     return run_ffmpeg(cmd, "merge_av")
 
 
-def build_scene_clip(scene: dict, video_id: str, tmp_dir: str, show_subtitles: bool = False):
+def build_scene_clip(scene: dict, video_id: str, tmp_dir: str,
+                     show_subtitles: bool = False, ken_burns: bool = False):
     """Build one scene: footage/animation → caption (optional) → merge audio."""
     sid        = scene["id"]
     audio_path = scene.get("audio_path")
@@ -427,7 +455,7 @@ def build_scene_clip(scene: dict, video_id: str, tmp_dir: str, show_subtitles: b
 
     if not used_animation:
         if footage:
-            ok = prepare_footage_clip(footage[0], footage_out, duration)
+            ok = prepare_footage_clip(footage[0], footage_out, duration, ken_burns=ken_burns)
             if not ok:
                 create_color_background(footage_out, duration)
         else:
@@ -735,7 +763,7 @@ def add_background_music(
 # ── Main assembly ─────────────────────────────────────────────────────────
 
 def assemble_video(script: dict, scenes: list, video_id: str, channel_name: str,
-                   niche: str = "", show_subtitles: bool = False):
+                   niche: str = "", show_subtitles: bool = False, ken_burns: bool = False):
     """Full pipeline: title + scenes + outro → concat → bgm → final MP4."""
     tmp_dir = os.path.join(VIDEOS_DIR, f"tmp_{video_id}")
     os.makedirs(tmp_dir, exist_ok=True)
@@ -754,7 +782,8 @@ def assemble_video(script: dict, scenes: list, video_id: str, channel_name: str,
     # Scene clips
     for scene in scenes:
         logger.info(f"Assembling scene {scene['id']}...")
-        clip = build_scene_clip(scene, video_id, tmp_dir, show_subtitles=show_subtitles)
+        clip = build_scene_clip(scene, video_id, tmp_dir,
+                               show_subtitles=show_subtitles, ken_burns=ken_burns)
         if clip and os.path.exists(clip):
             all_clips.append(clip)
 

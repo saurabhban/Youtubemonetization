@@ -144,6 +144,19 @@
 
     /* ── Niche grid ─────────────────────────────── */
     .niche-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+    .niche-section-label { font-size: 0.68rem; color: var(--dim); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 5px; margin-top: 10px; }
+    .niche-card.story-niche { border-color: rgba(128,80,255,0.3); }
+    .niche-card.story-niche:hover { border-color: #8050ff; }
+    .niche-card.story-niche.selected { border-color: #8050ff; background: rgba(128,80,255,0.08); }
+    .niche-cpm.story { color: #b48fff; }
+
+    /* ── ElevenLabs panel ───────────────────────── */
+    .el-badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 0.7rem; font-weight: 700; padding: 2px 8px; border-radius: 10px;
+      background: rgba(255,215,0,0.1); color: var(--gold); border: 1px solid rgba(255,215,0,0.25);
+    }
+    .el-badge.active { background: rgba(0,200,81,0.1); color: var(--green); border-color: rgba(0,200,81,0.25); }
     .niche-card {
       padding: 10px 12px;
       border: 1px solid var(--border);
@@ -354,6 +367,7 @@
 
         <div class="form-group">
           <div class="form-label">Niche</div>
+          <div class="niche-section-label">📊 Educational / Info</div>
           <div class="niche-grid">
             <div class="niche-card" data-niche="Personal Finance India" onclick="selectNiche(this)">
               <div class="niche-name">💰 Personal Finance</div>
@@ -370,6 +384,25 @@
             <div class="niche-card" data-niche="Health & Wellness India" onclick="selectNiche(this)">
               <div class="niche-name">🧘 Health & Wellness</div>
               <div class="niche-cpm">CPM ₹50–120</div>
+            </div>
+          </div>
+          <div class="niche-section-label">🎭 Faceless Story Channels</div>
+          <div class="niche-grid">
+            <div class="niche-card story-niche" data-niche="Horror Stories India" onclick="selectNiche(this)">
+              <div class="niche-name">👻 Horror Stories</div>
+              <div class="niche-cpm story">CPM ₹60–180 · Ken Burns</div>
+            </div>
+            <div class="niche-card story-niche" data-niche="Motivational Stories India" onclick="selectNiche(this)">
+              <div class="niche-name">🔥 Motivational</div>
+              <div class="niche-cpm story">CPM ₹50–140 · Ken Burns</div>
+            </div>
+            <div class="niche-card story-niche" data-niche="True Crime India" onclick="selectNiche(this)">
+              <div class="niche-name">🔍 True Crime</div>
+              <div class="niche-cpm story">CPM ₹80–200 · Ken Burns</div>
+            </div>
+            <div class="niche-card story-niche" data-niche="Indian Mythology & History" onclick="selectNiche(this)">
+              <div class="niche-name">🏺 Mythology & History</div>
+              <div class="niche-cpm story">CPM ₹60–160 · Ken Burns</div>
             </div>
           </div>
         </div>
@@ -410,6 +443,19 @@
           </div>
         </div>
 
+        <!-- ElevenLabs Voice Selector -->
+        <div class="form-group" id="voiceSelectorWrap" style="display:none">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+            <div class="form-label" style="margin:0">🎙️ Narrator Voice</div>
+            <span class="el-badge active" id="elBadge">🔊 ElevenLabs</span>
+          </div>
+          <select id="voiceSelect" style="margin-bottom:0">
+            <option value="">Loading voices...</option>
+          </select>
+          <div style="font-size:0.7rem;color:var(--dim);margin-top:4px">Human-quality narration via ElevenLabs · <a href="https://elevenlabs.io/app/voice-lab" target="_blank" style="color:var(--saffron)">Voice Lab ↗</a></div>
+        </div>
+
+        <!-- Subtitle toggle -->
         <div class="form-row3" style="margin-bottom:14px">
           <div class="form-group" style="grid-column:1/-1;display:flex;align-items:center;gap:10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:10px 14px">
             <input type="checkbox" id="subtitlesToggle" style="width:16px;height:16px;accent-color:#ff6b00;cursor:pointer;flex-shrink:0">
@@ -492,6 +538,7 @@
     loadTopicIdeas(selectedNiche);
     loadJobs();
     loadStats();
+    loadElevenLabsVoices();
     setInterval(loadJobs, 15000);
   });
 
@@ -547,6 +594,33 @@
     el.classList.add("selected");
   }
 
+  // ── ElevenLabs voices ─────────────────────────────────
+  async function loadElevenLabsVoices() {
+    try {
+      const d = await fetch("/api/elevenlabs-voices").then(r => r.json());
+      const wrap   = document.getElementById("voiceSelectorWrap");
+      const select = document.getElementById("voiceSelect");
+      const badge  = document.getElementById("elBadge");
+
+      if (d.provider === "elevenlabs" && d.voices && d.voices.length) {
+        wrap.style.display = "block";
+        badge.className = "el-badge active";
+        badge.textContent = "🔊 ElevenLabs Active";
+        select.innerHTML = d.voices.map(v => {
+          const label = v.name + (v.labels?.accent ? ` · ${v.labels.accent}` : "");
+          return `<option value="${v.voice_id}">${label}</option>`;
+        }).join("");
+      } else if (d.provider === "edge_tts") {
+        // No ElevenLabs key — show a note in header instead of voice selector
+        const badge2 = document.createElement("span");
+        badge2.className = "el-badge";
+        badge2.textContent = "🎤 Edge TTS";
+        badge2.title = "Set ELEVENLABS_API_KEY in .env for human-quality voice";
+        document.querySelector(".header-right").prepend(badge2);
+      }
+    } catch(e) { console.warn("Could not load voices:", e); }
+  }
+
   // ── Generate ───────────────────────────────────────────
   async function startVideo() {
     const topic          = document.getElementById("topicInput").value.trim();
@@ -555,6 +629,8 @@
     const privacy        = document.getElementById("privacySelect").value;
     const upload         = document.getElementById("uploadSelect").value === "true";
     const show_subtitles = document.getElementById("subtitlesToggle").checked;
+    const voiceSel       = document.getElementById("voiceSelect");
+    const voice_id       = voiceSel && voiceSel.value ? voiceSel.value : undefined;
 
     document.getElementById("generateBtn").disabled = true;
     document.getElementById("generateBtn").textContent = "⏳ Generating...";
@@ -566,7 +642,7 @@
     try {
       const d = await fetch("/api/start-video", {
         method: "POST", headers: {"Content-Type":"application/json"},
-        body: JSON.stringify({topic, niche: selectedNiche, language: lang, privacy, upload, show_subtitles})
+        body: JSON.stringify({topic, niche: selectedNiche, language: lang, privacy, upload, show_subtitles, voice_id})
       }).then(r => r.json());
 
       if (d.job_id) {

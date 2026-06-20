@@ -63,6 +63,7 @@ class VideoGenerationPipeline:
         duration_min: int = 12,
         on_progress=None,
         show_subtitles: bool = False,
+        voice_id: str = None,
     ) -> dict:
         """
         Run the full pipeline for a given topic.
@@ -118,8 +119,11 @@ class VideoGenerationPipeline:
             # ── Step 2: Generate TTS Audio ───────────────────────────
             progress("audio", "Generating voiceover audio...", 20)
             from tts_engine import generate_scene_audio
-            scenes = script.get("scenes", [])
-            scenes = generate_scene_audio(scenes, video_id, self.language)
+            scenes      = script.get("scenes", [])
+            tts_rate    = script.get("tts_rate", "-5%")   # niche-specific pacing
+            scenes = generate_scene_audio(scenes, video_id, self.language,
+                                          tts_rate=tts_rate, niche=self.niche,
+                                          voice_id=voice_id)
             total_audio = sum(s.get("actual_duration_sec", 0) for s in scenes)
             progress("audio", f"Audio done: {total_audio:.0f}s narration across {len(scenes)} scenes", 40)
 
@@ -133,8 +137,11 @@ class VideoGenerationPipeline:
             # ── Step 4: Assemble Video ───────────────────────────────
             progress("assembly", "Assembling final video with FFmpeg...", 70)
             from video_assembler import assemble_video
+            from config import STORY_NICHES
+            ken_burns  = self.niche in STORY_NICHES   # cinematic zoom for story content
             video_path = assemble_video(script, scenes, video_id, self.channel_name,
-                                        niche=self.niche, show_subtitles=show_subtitles)
+                                        niche=self.niche, show_subtitles=show_subtitles,
+                                        ken_burns=ken_burns)
 
             if not video_path or not os.path.exists(video_path):
                 raise RuntimeError("Video assembly failed — check FFmpeg logs")
