@@ -24,7 +24,7 @@ JOBS: dict[str, dict] = {}
 
 def run_pipeline_async(job_id: str, topic: str, niche: str, language: str,
                        privacy: str, upload: bool, show_subtitles: bool = False,
-                       voice_id: str = None):
+                       voice_id: str = None, footage_mode: str = "pexels"):
     """Run pipeline in background thread, update JOBS dict."""
     from pipeline import VideoGenerationPipeline
     JOBS[job_id]["status"] = "running"
@@ -44,6 +44,7 @@ def run_pipeline_async(job_id: str, topic: str, niche: str, language: str,
         on_progress=on_progress,
         show_subtitles=show_subtitles,
         voice_id=voice_id,
+        footage_mode=footage_mode,
     )
     JOBS[job_id]["result"]  = result
     JOBS[job_id]["status"]  = "done" if result["success"] else "error"
@@ -94,6 +95,7 @@ def api_start_video():
     upload          = data.get("upload",          True)
     show_subtitles  = data.get("show_subtitles",  False)
     voice_id        = data.get("voice_id",        None)
+    footage_mode    = data.get("footage_mode",    "pexels")
 
     if not topic:
         return jsonify({"error": "Topic is required"}), 400
@@ -115,7 +117,8 @@ def api_start_video():
 
     thread = threading.Thread(
         target=run_pipeline_async,
-        args=(job_id, topic, niche, language, privacy, upload, show_subtitles, voice_id),
+        args=(job_id, topic, niche, language, privacy, upload,
+              show_subtitles, voice_id, footage_mode),
         daemon=True,
     )
     thread.start()
@@ -226,6 +229,25 @@ def api_elevenlabs_voices():
         return jsonify({"provider": provider, "voices": voices})
     except Exception as e:
         return jsonify({"error": str(e), "voices": []}), 500
+
+
+@app.route("/api/ai-footage-status")
+def api_ai_footage_status():
+    """Check whether AI footage generation (fal.ai / Kling) is configured."""
+    fal_key = os.getenv("FAL_KEY", "")
+    cost_estimate = {}
+    if fal_key:
+        try:
+            from ai_footage_generator import estimate_cost
+            cost_estimate = estimate_cost(12)
+        except Exception:
+            pass
+    return jsonify({
+        "configured":     bool(fal_key),
+        "key_preview":    f"{fal_key[:8]}..." if fal_key else None,
+        "model":          "Kling v1.6 via fal.ai",
+        "cost_estimate":  cost_estimate,
+    })
 
 
 @app.route("/api/elevenlabs-status")

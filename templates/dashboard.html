@@ -466,6 +466,17 @@
           </div>
         </div>
 
+        <!-- AI Footage toggle (shown only when FAL_KEY set) -->
+        <div id="aiFoootageWrap" style="display:none;margin-bottom:14px">
+          <div style="display:flex;align-items:center;gap:10px;background:rgba(128,80,255,0.06);border:1px solid rgba(128,80,255,0.25);border-radius:8px;padding:10px 14px">
+            <input type="checkbox" id="aiFootageToggle" style="width:16px;height:16px;accent-color:#8050ff;cursor:pointer;flex-shrink:0" onchange="updateCostEstimate()">
+            <div style="flex:1">
+              <div style="font-size:0.82rem;font-weight:600;color:#c4a0ff">🤖 AI-Generated Footage <span style="font-size:0.68rem;color:#8050ff;margin-left:4px">Kling v1.6</span></div>
+              <div style="font-size:0.72rem;color:var(--dim);margin-top:2px">Generate cinematic clips per scene via fal.ai · <span id="aiFootageCost" style="color:#b48fff"></span></div>
+            </div>
+          </div>
+        </div>
+
         <button class="btn-generate" id="generateBtn" onclick="startVideo()">
           🎬 Generate & Upload Video
         </button>
@@ -533,12 +544,16 @@
   let authPollTimer = null;
 
   // ── Init ───────────────────────────────────────────────
+  let aiFoootageAvailable = false;
+  let aiFoootageEstimate  = {};
+
   document.addEventListener("DOMContentLoaded", () => {
     checkYTStatus();
     loadTopicIdeas(selectedNiche);
     loadJobs();
     loadStats();
     loadElevenLabsVoices();
+    checkAiFootageStatus();
     setInterval(loadJobs, 15000);
   });
 
@@ -594,6 +609,30 @@
     el.classList.add("selected");
   }
 
+  // ── AI Footage (Kling/fal.ai) ─────────────────────────
+  async function checkAiFootageStatus() {
+    try {
+      const d = await fetch("/api/ai-footage-status").then(r => r.json());
+      aiFoootageAvailable = d.configured;
+      aiFoootageEstimate  = d.cost_estimate || {};
+      if (d.configured) {
+        document.getElementById("aiFoootageWrap").style.display = "block";
+        updateCostEstimate();
+      }
+    } catch(e) { /* silent */ }
+  }
+
+  function updateCostEstimate() {
+    const el    = document.getElementById("aiFootageCost");
+    const on    = document.getElementById("aiFootageToggle").checked;
+    if (!el) return;
+    if (on && aiFoootageEstimate.cost_usd) {
+      el.textContent = `~$${aiFoootageEstimate.cost_usd} / ₹${aiFoootageEstimate.cost_inr} per video`;
+    } else {
+      el.textContent = "Kling text-to-video, 5s clips per scene";
+    }
+  }
+
   // ── ElevenLabs voices ─────────────────────────────────
   async function loadElevenLabsVoices() {
     try {
@@ -631,6 +670,8 @@
     const show_subtitles = document.getElementById("subtitlesToggle").checked;
     const voiceSel       = document.getElementById("voiceSelect");
     const voice_id       = voiceSel && voiceSel.value ? voiceSel.value : undefined;
+    const aiToggle       = document.getElementById("aiFootageToggle");
+    const footage_mode   = (aiToggle && aiToggle.checked) ? "ai" : "pexels";
 
     document.getElementById("generateBtn").disabled = true;
     document.getElementById("generateBtn").textContent = "⏳ Generating...";
@@ -642,7 +683,7 @@
     try {
       const d = await fetch("/api/start-video", {
         method: "POST", headers: {"Content-Type":"application/json"},
-        body: JSON.stringify({topic, niche: selectedNiche, language: lang, privacy, upload, show_subtitles, voice_id})
+        body: JSON.stringify({topic, niche: selectedNiche, language: lang, privacy, upload, show_subtitles, voice_id, footage_mode})
       }).then(r => r.json());
 
       if (d.job_id) {

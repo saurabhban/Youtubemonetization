@@ -64,6 +64,7 @@ class VideoGenerationPipeline:
         on_progress=None,
         show_subtitles: bool = False,
         voice_id: str = None,
+        footage_mode: str = "pexels",
     ) -> dict:
         """
         Run the full pipeline for a given topic.
@@ -127,12 +128,21 @@ class VideoGenerationPipeline:
             total_audio = sum(s.get("actual_duration_sec", 0) for s in scenes)
             progress("audio", f"Audio done: {total_audio:.0f}s narration across {len(scenes)} scenes", 40)
 
-            # ── Step 3: Fetch Stock Footage ──────────────────────────
-            progress("footage", "Downloading stock footage from Pexels...", 45)
+            # ── Step 3: Fetch Stock / AI Footage ────────────────────
+            if footage_mode == "ai":
+                from ai_footage_generator import estimate_cost
+                est = estimate_cost(len(scenes))
+                progress("footage",
+                         f"Generating AI footage via Kling · {len(scenes)} scenes "
+                         f"· est. ${est['cost_usd']} (₹{est['cost_inr']})", 45)
+            else:
+                progress("footage", "Downloading stock footage from Pexels...", 45)
             from footage_fetcher import fetch_all_footage
-            scenes = fetch_all_footage(scenes, video_id)
+            scenes = fetch_all_footage(scenes, video_id,
+                                       footage_mode=footage_mode, niche=self.niche)
             total_clips = sum(len(s.get("footage_paths", [])) for s in scenes)
-            progress("footage", f"Downloaded {total_clips} video clips", 65)
+            src_label = "AI clips" if footage_mode == "ai" else "stock clips"
+            progress("footage", f"Ready: {total_clips} {src_label}", 65)
 
             # ── Step 4: Assemble Video ───────────────────────────────
             progress("assembly", "Assembling final video with FFmpeg...", 70)

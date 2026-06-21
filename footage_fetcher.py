@@ -149,14 +149,39 @@ def fetch_footage_for_scene(scene: dict, video_id: str, clips_per_scene: int = 2
     return downloaded
 
 
-def fetch_all_footage(scenes: list[dict], video_id: str) -> list[dict]:
+def fetch_all_footage(scenes: list[dict], video_id: str,
+                      footage_mode: str = "pexels", niche: str = "") -> list[dict]:
     """
     Fetch footage for all scenes.
+
+    footage_mode:
+      "pexels" (default) — free stock footage from Pexels
+      "ai"               — AI-generated clips via Kling/fal.ai (FAL_KEY required)
+                           Falls back to Pexels per-scene on AI failure.
+
     Returns scenes list with 'footage_paths' added to each scene.
     """
+    if footage_mode == "ai":
+        logger.info(f"Footage mode: AI (Kling via fal.ai) | niche: {niche}")
+        try:
+            from ai_footage_generator import generate_all_ai_footage
+            scenes = generate_all_ai_footage(scenes, video_id, niche=niche)
+        except ImportError:
+            logger.warning("ai_footage_generator not found — falling back to Pexels")
+            footage_mode = "pexels"
+        except Exception as e:
+            logger.error(f"AI footage generation error: {e} — falling back to Pexels")
+            footage_mode = "pexels"
+
+    # For each scene without footage (Pexels mode or AI fallback)
     updated = []
     for scene in scenes:
-        logger.info(f"Fetching footage for scene {scene['id']}: {scene.get('visual_description', '')[:60]}")
+        if scene.get("footage_paths"):
+            # AI already filled this scene
+            updated.append(scene)
+            continue
+        logger.info(f"Fetching Pexels footage for scene {scene['id']}: "
+                    f"{scene.get('visual_description', '')[:60]}")
         paths = fetch_footage_for_scene(scene, video_id)
         scene["footage_paths"] = paths
         updated.append(scene)
